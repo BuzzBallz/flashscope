@@ -271,18 +271,18 @@ export default function PriceMatrix() {
   };
 
   return (
-    <div className="w-full h-full bg-background p-4 overflow-auto relative">
-      <div className="max-w-7xl mx-auto">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-background relative">
+      <div className="flex-1 overflow-auto p-4">
         <h3 className="font-mono text-sm text-muted mb-3 uppercase tracking-wide">
           Price Matrix — Real-time DEX Prices
         </h3>
 
-        <table className="w-full border-collapse font-mono text-xs">
+        <table className="w-full table-fixed border-collapse font-mono text-xs">
           <thead>
             <tr className="border-b border-purple-600/40">
-              <th className="text-left py-2 px-3 text-muted font-semibold">PAIR</th>
+              <th className="text-left py-3 px-3 text-muted font-semibold">PAIR</th>
               {DEX_LIST.map((dex) => (
-                <th key={dex} className="text-center py-2 px-3 text-muted font-semibold uppercase">
+                <th key={dex} className="text-center py-3 px-3 text-muted font-semibold uppercase">
                   {dex.replace('_', ' ')}
                 </th>
               ))}
@@ -295,10 +295,10 @@ export default function PriceMatrix() {
               return (
                 <tr
                   key={pair}
-                  className="border-b border-purple-600/20 last:border-0 hover:bg-muted/5 transition-colors cursor-pointer"
+                  className="h-12 border-b border-purple-600/20 last:border-0 hover:bg-muted/5 transition-colors cursor-pointer"
                   onClick={() => handleRowClick(pair)}
                 >
-                  <td className="py-2 px-3 font-semibold text-white">{pair}</td>
+                  <td className="py-3 px-3 font-semibold text-white">{pair}</td>
                   {DEX_LIST.map((dex) => {
                     const price = prices[pair][dex];
                     const isMin = dex === minDex;
@@ -310,7 +310,7 @@ export default function PriceMatrix() {
                     return (
                       <motion.td
                         key={dex}
-                        className={`text-center py-2 px-3 relative ${
+                        className={`text-center py-3 px-3 relative ${
                           isMin
                             ? 'bg-lime-900/30 text-lime-400 font-bold'
                             : isMax

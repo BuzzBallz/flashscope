@@ -61,7 +61,7 @@ export default function Dashboard() {
         <ResizableHandle className="h-1 w-full bg-purple-600/50 hover:bg-purple-400 active:bg-purple-300 transition-colors cursor-row-resize" />
 
         {/* Bottom — PriceMatrix full width */}
-        <ResizablePanel defaultSize={40} minSize={20}>
+        <ResizablePanel defaultSize={40} minSize={20} className="overflow-hidden">
           <PriceMatrix />
         </ResizablePanel>
 

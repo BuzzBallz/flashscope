@@ -3,7 +3,79 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CircleIcon } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import CountUp from './CountUp/CountUp';
-import { Toggle } from './ui/toggle';
+
+const starBorderStyles = `
+@keyframes star-movement-bottom {
+  0%   { transform: translateX(0%); }
+  100% { transform: translateX(50%); }
+}
+@keyframes star-movement-top {
+  0%   { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+.star-border-container {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.star-border-inner {
+  position: relative;
+  z-index: 1;
+  border-radius: 7px;
+  padding: 4px 12px;
+}
+.star-border-bottom {
+  position: absolute;
+  bottom: -20px;
+  left: -50%;
+  width: 200%;
+  height: 40px;
+  opacity: 0.7;
+  border-radius: 50%;
+}
+.star-border-top {
+  position: absolute;
+  top: -20px;
+  left: -50%;
+  width: 200%;
+  height: 40px;
+  opacity: 0.7;
+  border-radius: 50%;
+}
+`
+
+const StarBorder = ({
+  onClick,
+  color = 'white',
+  speed = '6s',
+  children,
+  className = ''
+}: {
+  onClick: () => void
+  color?: string
+  speed?: string
+  children: React.ReactNode
+  className?: string
+}) => (
+  <>
+    <style>{starBorderStyles}</style>
+    <button onClick={onClick} className={`star-border-container ${className}`} style={{ padding: '1px 0' }}>
+      <div className="star-border-bottom" style={{
+        background: `radial-gradient(circle, ${color}, transparent 10%)`,
+        animation: `star-movement-bottom ${speed} linear infinite`
+      }} />
+      <div className="star-border-top" style={{
+        background: `radial-gradient(circle, ${color}, transparent 10%)`,
+        animation: `star-movement-top ${speed} linear infinite`
+      }} />
+      <div className="star-border-inner">{children}</div>
+    </button>
+  </>
+)
 
 interface ProfitBannerProps {
   isAutoMode: boolean;
@@ -127,24 +199,24 @@ export default function ProfitBanner({ isAutoMode, onModeChange, totalProfit }: 
           <span className="text-xs text-muted">{getConnectionLabel()}</span>
         </div>
 
-        <Toggle
-          pressed={isAutoMode}
-          onPressedChange={onModeChange}
-          size="sm"
-          variant="outline"
-          className={`gap-2 border transition-colors ${
-            isAutoMode
-              ? 'border-lime-500 text-lime-400 hover:text-lime-300'
-              : 'border-gray-600 text-gray-400 hover:text-gray-300'
-          }`}
+        <StarBorder
+          onClick={() => onModeChange(!isAutoMode)}
+          color={isAutoMode ? '#84cc16' : '#6b7280'}
+          speed={isAutoMode ? '3s' : '8s'}
+          thickness={1}
+          className="text-xs font-mono"
         >
-          <CircleIcon
-            className={`h-3 w-3 transition-all ${
-              isAutoMode ? 'fill-lime-400 text-lime-400' : 'fill-transparent text-gray-400'
-            }`}
-          />
-          {isAutoMode ? 'Auto' : 'Manual'}
-        </Toggle>
+          <div className={`flex items-center gap-2 px-1 py-0.5 rounded transition-colors ${
+            isAutoMode
+              ? 'text-lime-400'
+              : 'text-gray-500'
+          }`}>
+            <CircleIcon className={`h-2 w-2 transition-all ${
+              isAutoMode ? 'fill-lime-400 text-lime-400' : 'fill-transparent text-gray-500'
+            }`} />
+            <span>{isAutoMode ? 'Auto' : 'Manual'}</span>
+          </div>
+        </StarBorder>
       </div>
 
       {/* Mock mode indicator */}
