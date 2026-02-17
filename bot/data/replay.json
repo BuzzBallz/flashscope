@@ -1,0 +1,18 @@
+[
+  {
+    "type": "ARBITRAGE_EXECUTED",
+    "data": {
+      "pair": "WMON/USDC",
+      "dexBuy": "uniswap",
+      "dexSell": "sushiswap",
+      "amountBorrowed": 1,
+      "profit": 0.06695281735772163,
+      "txHash": "0x6b517fe850d5a7d9c407ebb7d04f71e1767782b2105983a5d3778f6febcc971c",
+      "blockNumber": 13476692,
+      "executionTimeMs": 6582,
+      "timestamp": 1771362434090,
+      "cumulativeProfit": 0.06695281735772163,
+      "tradeCount": 1
+    }
+  }
+]

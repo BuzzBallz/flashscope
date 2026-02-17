@@ -9,9 +9,9 @@
 // --- DEX Registry ---
 export const DEX_LIST = [
   "uniswap_v4",
-  "kuru",
   "curve",
   "trader_joe",
+  "kuru",
   "clober",
   "ambient",
 ] as const;
@@ -19,10 +19,10 @@ export const DEX_LIST = [
 export type DexId = (typeof DEX_LIST)[number];
 
 export const DEX_DISPLAY_NAMES: Record<DexId, string> = {
-  uniswap_v4: "Uniswap",
-  kuru: "Kuru",
+  uniswap_v4: "Uniswap V4",
   curve: "Curve",
   trader_joe: "Trader Joe",
+  kuru: "Kuru",
   clober: "Clober",
   ambient: "Ambient",
 };
@@ -36,7 +36,7 @@ export type PairId = (typeof PAIRS)[number];
 export interface DexPrice {
   dex: DexId;
   pair: PairId;
-  price: number; // e.g. 1.0234
+  price: number; // e.g. 22.00
   timestamp: number; // unix ms
 }
 
@@ -109,48 +109,34 @@ export const WS_URL = `ws://localhost:${WS_PORT}`;
 // Dev B: use these to build and test the UI before the backend is ready.
 
 export const MOCK_PRICES: DexPrice[] = [
-  { dex: "uniswap_v4", pair: "WMON/USDC", price: 1.0234, timestamp: Date.now() },
-  { dex: "kuru", pair: "WMON/USDC", price: 1.0312, timestamp: Date.now() },
-  { dex: "curve", pair: "WMON/USDC", price: 1.0228, timestamp: Date.now() },
-  { dex: "trader_joe", pair: "WMON/USDC", price: 1.0241, timestamp: Date.now() },
-  { dex: "clober", pair: "WMON/USDC", price: 1.0298, timestamp: Date.now() },
-  { dex: "ambient", pair: "WMON/USDC", price: 1.0245, timestamp: Date.now() },
-  { dex: "uniswap_v4", pair: "WETH/USDC", price: 2841.2, timestamp: Date.now() },
-  { dex: "kuru", pair: "WETH/USDC", price: 2843.8, timestamp: Date.now() },
-  { dex: "curve", pair: "WETH/USDC", price: 2840.1, timestamp: Date.now() },
-  { dex: "trader_joe", pair: "WETH/USDC", price: 2845.2, timestamp: Date.now() },
-  { dex: "clober", pair: "WETH/USDC", price: 2842.0, timestamp: Date.now() },
-  { dex: "ambient", pair: "WETH/USDC", price: 2841.8, timestamp: Date.now() },
-  { dex: "uniswap_v4", pair: "WMON/WETH", price: 0.000360, timestamp: Date.now() },
-  { dex: "kuru", pair: "WMON/WETH", price: 0.000362, timestamp: Date.now() },
-  { dex: "curve", pair: "WMON/WETH", price: 0.000359, timestamp: Date.now() },
-  { dex: "trader_joe", pair: "WMON/WETH", price: 0.000361, timestamp: Date.now() },
-  { dex: "clober", pair: "WMON/WETH", price: 0.000363, timestamp: Date.now() },
-  { dex: "ambient", pair: "WMON/WETH", price: 0.000360, timestamp: Date.now() },
+  { dex: "uniswap_v4", pair: "WMON/USDC", price: 22.00, timestamp: Date.now() },
+  { dex: "curve", pair: "WMON/USDC", price: 22.15, timestamp: Date.now() },
+  { dex: "trader_joe", pair: "WMON/USDC", price: 22.30, timestamp: Date.now() },
+  { dex: "kuru", pair: "WMON/USDC", price: 21.85, timestamp: Date.now() },
+  { dex: "clober", pair: "WMON/USDC", price: 22.45, timestamp: Date.now() },
+  { dex: "ambient", pair: "WMON/USDC", price: 22.10, timestamp: Date.now() },
 ];
 
 export const MOCK_SPREADS: SpreadInfo[] = [
-  { pair: "WMON/USDC", dexLow: "curve", dexHigh: "kuru", priceLow: 1.0228, priceHigh: 1.0312, spreadBps: 82, profitable: true },
-  { pair: "WETH/USDC", dexLow: "curve", dexHigh: "trader_joe", priceLow: 2840.1, priceHigh: 2845.2, spreadBps: 18, profitable: false },
-  { pair: "WMON/WETH", dexLow: "curve", dexHigh: "clober", priceLow: 0.000359, priceHigh: 0.000363, spreadBps: 111, profitable: true },
+  { pair: "WMON/USDC", dexLow: "kuru", dexHigh: "clober", priceLow: 21.85, priceHigh: 22.45, spreadBps: 274, profitable: true },
 ];
 
 export const MOCK_ARBITRAGE: ArbitrageResult = {
   pair: "WMON/USDC",
-  dexBuy: "curve",
-  dexSell: "kuru",
-  amountBorrowed: 50000,
-  profit: 380.5,
+  dexBuy: "kuru",
+  dexSell: "clober",
+  amountBorrowed: 100,
+  profit: 0.55,
   txHash: "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
-  blockNumber: 12345678,
+  blockNumber: 13473500,
   executionTimeMs: 412,
   timestamp: Date.now(),
-  cumulativeProfit: 4218.5,
-  tradeCount: 23,
+  cumulativeProfit: 4.218,
+  tradeCount: 5,
 };
 
 export const MOCK_BLOCK: BlockInfo = {
-  number: 12345678,
+  number: 13473500,
   timestamp: Date.now(),
   txCount: 847,
   avgBlockTimeMs: 402,
