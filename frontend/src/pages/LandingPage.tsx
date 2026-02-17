@@ -8,6 +8,8 @@ import TextType from '../components/TextType/TextType';
 import SplitText from '../components/SplitText/SplitText';
 import ShinyText from '../components/ShinyText/ShinyText';
 import AnimatedContent from '../components/AnimatedContent/AnimatedContent';
+import PixelTransition from '../components/PixelTransition/PixelTransition';
+import MonadPixelLogo from '../components/PixelTransition/MonadLogo';
 import { Button } from '../components/ui/button';
 import { Spinner } from '../components/ui/spinner';
 import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert';
@@ -159,26 +161,32 @@ export default function LandingPage() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4 }}
           >
-            {loginState === 'loading' ? (
-              <Button
-                variant="outline"
-                size="lg"
-                disabled
-                className="border-purple-600 text-white gap-2"
-              >
-                <Spinner data-icon="inline-start" />
-                Connecting...
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={handleLogin}
-                className="border-purple-600 text-white hover:bg-purple-600/20 hover:text-white gap-2"
-              >
-                Login <ArrowRightIcon />
-              </Button>
-            )}
+            <div
+              onClick={loginState === 'idle' ? handleLogin : undefined}
+              style={{ width: '160px', height: '120px' }}
+            >
+              <PixelTransition
+                key={loginState}
+                firstContent={
+                  <div className="flex flex-col items-center justify-center gap-2 w-full h-full bg-[#0A0A1A] border border-purple-600/50 rounded-lg">
+                    <MonadPixelLogo />
+                    <span className="text-purple-400 text-xs font-mono tracking-widest uppercase">Login</span>
+                  </div>
+                }
+                secondContent={
+                  <div className="flex flex-col items-center justify-center gap-2 w-full h-full bg-purple-900/30 border border-purple-400 rounded-lg">
+                    <Spinner className="h-6 w-6 text-purple-300" />
+                    <span className="text-purple-300 text-xs font-mono tracking-widest uppercase">Connecting...</span>
+                  </div>
+                }
+                gridSize={50}
+                animationStepDuration={0.3}
+                pixelColor="#8c00ff"
+                once={false}
+                aspectRatio="0%"
+                style={{ width: '160px', height: '120px' }}
+              />
+            </div>
           </motion.div>
         )}
 
