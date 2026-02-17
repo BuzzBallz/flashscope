@@ -1,0 +1,41 @@
+# FlashScope — Project Rules
+
+## Time Constraint
+This is an 8-HOUR hackathon. Every decision must optimize for speed:
+- Don't over-engineer. Ship working code over perfect code.
+- If something takes more than 30 minutes and isn't working, use the fallback.
+- No tests beyond basic smoke tests. We're not shipping to production.
+- Copy-paste is fine. DRY doesn't matter today.
+
+## Integration Contract
+- `shared/types.ts` is the SINGLE SOURCE OF TRUTH for the WebSocket API.
+- NEVER edit it without telling your teammate.
+- Both frontend and backend MUST import types from their local copy of this file.
+- If you need a new message type, add it to the WSMessage union and notify your partner.
+
+## Code Style
+- Language: English everywhere (code, comments, commits)
+- TypeScript strict mode. No `any` types.
+- Use the shared type definitions — don't recreate them.
+- Prefer simple, readable code over clever abstractions.
+
+## Git Rules
+- Dev A works ONLY in `dev/backend` branch (contracts/ + bot/)
+- Dev B works ONLY in `dev/frontend` branch (frontend/)
+- Commit often with descriptive messages: `feat: price scanner with multicall`
+- At H5: merge both into `main` for integration test
+- **NEVER add `Co-Authored-By` lines for Claude or any AI assistant in commit messages. All commits must appear as human-authored only.**
+
+## Error Philosophy
+- Never crash. Catch errors, log them, continue.
+- Backend: if one DEX fails, skip it and scan the others.
+- Frontend: if WebSocket dies, fall back to mock data seamlessly.
+- Both: prefer degraded functionality over no functionality.
+
+## Demo Priority
+The demo pitch is 2-3 minutes. Everything we build must serve the demo:
+1. Visual impact (frontend animations, dark mode, data flowing)
+2. Live data (real Monad prices showing in real-time)
+3. Arbitrage execution (flash loan executing and profit increasing)
+
+If (3) doesn't work, (1) + (2) with replay data is still a strong demo.
