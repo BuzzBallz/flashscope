@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: #0A0A1A;
+  color: white;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code, pre, .mono {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Custom glow animation for arbitrage events */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(131, 110, 249, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(131, 110, 249, 0.8), 0 0 40px rgba(131, 110, 249, 0.4);
+  }
+}
+
+.glow-pulse {
+  animation: glow-pulse 1.5s ease-in-out;
+}
+
+/* Profit flash animation */
+@keyframes profit-flash {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(0, 255, 136, 0.15);
+  }
+}
+
+.profit-flash {
+  animation: profit-flash 0.6s ease-out;
+}
+
+/* Success glow for profit events */
+@keyframes success-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(0, 255, 148, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(0, 255, 148, 0.8), 0 0 50px rgba(0, 255, 148, 0.4);
+  }
+}
+
+.success-glow {
+  animation: success-glow 1s ease-in-out;
+}
+
+/* Danger glow for failed events */
+@keyframes danger-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255, 77, 77, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(255, 77, 77, 0.8), 0 0 50px rgba(255, 77, 77, 0.4);
+  }
+}
+
+.danger-glow {
+  animation: danger-glow 1s ease-in-out;
+}
+
+/* Smooth transitions for all interactive elements */
+* {
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Override for animations that need their own timing */
+.no-transition {
+  transition: none !important;
+}
+
+/* Subtle shimmer for loading states */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(131, 110, 249, 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
