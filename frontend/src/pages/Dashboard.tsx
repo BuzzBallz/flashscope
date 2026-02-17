@@ -8,6 +8,7 @@ import NetworkRadar from '../components/NetworkRadar';
 import AnimatedContent from '../components/AnimatedContent/AnimatedContent';
 import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../components/ui/resizable';
+import MobileDashboard from './MobileDashboard';
 
 export default function Dashboard() {
   const location = useLocation();
@@ -26,12 +27,19 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="w-screen h-screen bg-background relative">
-      <ResizablePanelGroup
-        orientation="vertical"
-        className="h-screen w-screen overflow-hidden"
-        style={{ padding: 0, margin: 0 }}
-      >
+    <>
+      {/* Mobile Dashboard (< 1024px) */}
+      <div className="lg:hidden">
+        <MobileDashboard />
+      </div>
+
+      {/* Desktop Dashboard (>= 1024px) */}
+      <div className="hidden lg:block w-screen h-screen bg-background relative">
+        <ResizablePanelGroup
+          orientation="vertical"
+          className="h-screen w-screen overflow-hidden"
+          style={{ padding: 0, margin: 0 }}
+        >
 
         {/* Top row — LiveFeed left, ProfitBanner + NetworkRadar right */}
         <ResizablePanel defaultSize={60} minSize={30}>
@@ -92,12 +100,13 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Resize Hint */}
-      {showHint && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#0D0D1F] border border-purple-600/40 text-gray-400 text-xs px-4 py-2 rounded-full pointer-events-none">
-          Drag the purple handles to resize panels
-        </div>
-      )}
-    </div>
+        {/* Resize Hint */}
+        {showHint && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#0D0D1F] border border-purple-600/40 text-gray-400 text-xs px-4 py-2 rounded-full pointer-events-none">
+            Drag the purple handles to resize panels
+          </div>
+        )}
+      </div>
+    </>
   );
 }
