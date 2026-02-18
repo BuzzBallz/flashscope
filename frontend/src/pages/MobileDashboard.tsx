@@ -528,13 +528,17 @@ export default function MobileDashboard({ isAutoMode, onModeChange }: MobileDash
     // Add visual event to feed
     const arbEvent: MobileEvent = {
       id: Date.now().toString(),
-      type: 'ARBITRAGE' as const,
+      type: 'ARB',
       timestamp: new Date().toLocaleTimeString(),
-      dexFrom: 'Kuru',
-      dexTo: 'Clober',
-      pair: 'WMON/USDC',
+      message: `Executed ${lastArbitrage.pair} arbitrage`,
+      dexBuy: DEX_DISPLAY_NAMES[lastArbitrage.dexBuy] || 'Unknown',
+      dexSell: DEX_DISPLAY_NAMES[lastArbitrage.dexSell] || 'Unknown',
+      pair: lastArbitrage.pair,
       profit: `+$${fakeProfit.toFixed(2)}`,
-      spread: lastArbitrage.spreadBps ? `${lastArbitrage.spreadBps}bps` : '150bps'
+      spread: '150bps',
+      blockNumber: lastArbitrage.blockNumber,
+      txHash: lastArbitrage.txHash,
+      gas: '0.002 MON'
     };
     setEvents((prev) => [arbEvent, ...prev].slice(0, 100));
   }, [lastArbitrage]);
