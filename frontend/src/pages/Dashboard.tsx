@@ -8,6 +8,7 @@ import NetworkRadar from '../components/NetworkRadar';
 import AnimatedContent from '../components/AnimatedContent/AnimatedContent';
 import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../components/ui/resizable';
+import MobileDashboard from './MobileDashboard';
 import DemoFlow from '../components/DemoFlow';
 import { useData } from '../contexts/DataContext';
 
@@ -31,8 +32,15 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="w-screen h-screen bg-background relative">
-      <ResizablePanelGroup
+    <>
+      {/* Mobile Dashboard (< 1024px) */}
+      <div className="lg:hidden">
+        <MobileDashboard isAutoMode={isAutoMode} onModeChange={setIsAutoMode} />
+      </div>
+
+      {/* Desktop Dashboard (>= 1024px) */}
+      <div className="hidden lg:block w-screen h-screen bg-background relative">
+        <ResizablePanelGroup
         orientation="vertical"
         className="h-screen w-screen overflow-hidden"
         style={{ padding: 0, margin: 0 }}
@@ -106,6 +114,7 @@ export default function Dashboard() {
           Drag the purple handles to resize panels
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
