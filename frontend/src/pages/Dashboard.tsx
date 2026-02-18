@@ -11,6 +11,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../compone
 import MobileDashboard from './MobileDashboard';
 import DemoFlow from '../components/DemoFlow';
 import { usePriceReset } from '../hooks/usePriceReset';
+import { useData } from '../contexts/DataContext';
 
 export default function Dashboard() {
   const location = useLocation();
@@ -20,10 +21,22 @@ export default function Dashboard() {
   const [showHint, setShowHint] = useState(true);
 
   const { isResetting, lastResult } = usePriceReset();
+  const { lastArbitrage } = useData();
 
   const handleArbitrageExecuted = (profit: number) => {
     setTotalProfit(prev => prev + profit);
   };
+
+  // Update PnL when real arbitrage executes (fake profits for demo)
+  useEffect(() => {
+    if (!lastArbitrage) return;
+
+    // Generate fake profit between $2-$8 for visual effect
+    const fakeProfit = 2 + Math.random() * 6;
+
+    console.log('[PROFIT] Real arb executed, adding fake profit:', fakeProfit);
+    setTotalProfit((prev) => prev + fakeProfit);
+  }, [lastArbitrage]);
 
   useEffect(() => {
     const t = setTimeout(() => setShowHint(false), 3000);
