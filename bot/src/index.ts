@@ -57,10 +57,10 @@ async function main() {
   // 2. Start WebSocket server
   startWSServer();
 
-  // 3. Start price scanner (reads 6 pools every 10s for max stability)
+  // 3. Start price scanner (reads 6 pools every 15s to ensure gas/mint operations never fail)
   // demo=true: broadcast opportunities but don't auto-execute (user signs tx)
   const isDemo = process.env.DEMO_MODE !== "false";
-  startScanner(10000, isDemo); // 10s interval for demo stability
+  startScanner(15000, isDemo); // 15s interval - max stability for gas operations
   console.log(`Demo mode: ${isDemo ? "ON (user signs tx)" : "OFF (auto-execute)"}`);
 
   console.log("");
