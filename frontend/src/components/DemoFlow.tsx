@@ -37,6 +37,8 @@ export default function DemoFlow({ onArbitrageExecuted }: DemoFlowProps) {
   const [mintHash, setMintHash] = useState<string | null>(null);
   const [minimized, setMinimized] = useState(false);
   const [currentOpp, setCurrentOpp] = useState<Opportunity | null>(null);
+  const [pendingOpp, setPendingOpp] = useState<Opportunity | null>(null);
+  const prevOppRef = useRef<number>(0);
 
   // wagmi write contract hook for executeArbitrage
   const { writeContract, data: arbTxHash, isPending: isWriting } = useWriteContract();
@@ -103,52 +105,38 @@ export default function DemoFlow({ onArbitrageExecuted }: DemoFlowProps) {
     mintUsdc();
   }, [step, address]);
 
-  // Manual trigger: Press Space to generate and show fake opportunity
+  // Step 4: Watch for opportunity from bot (don't auto-advance, just store it)
+  useEffect(() => {
+    if (step !== 'ready' || !lastOpportunity) return;
+    // Deduplicate: check if this is a new opportunity
+    const oppKey = `${lastOpportunity.dexBuy}-${lastOpportunity.dexSell}-${lastOpportunity.spreadBps}`;
+    const oppHash = oppKey.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+    if (oppHash === prevOppRef.current) return;
+    prevOppRef.current = oppHash;
+
+    // Only store if we have pool addresses (demo mode) - don't auto-advance
+    if (lastOpportunity.poolBuy && lastOpportunity.poolSell && lastOpportunity.poolBorrow) {
+      setPendingOpp(lastOpportunity);
+      console.log('[DEMO] Opportunity detected - Press SPACE to show it');
+    }
+  }, [step, lastOpportunity]);
+
+  // Manual trigger: Press Space to show opportunity
   useEffect(() => {
     if (step !== 'ready') return;
 
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
+      if (e.code === 'Space' && pendingOpp) {
         e.preventDefault();
-
-        // Generate fake opportunity
-        const dexes = ['uniswap_v4', 'kuru', 'curve', 'trader_joe', 'clober', 'ambient'] as const;
-        const randomDexBuy = dexes[Math.floor(Math.random() * dexes.length)];
-        let randomDexSell = dexes[Math.floor(Math.random() * dexes.length)];
-        // Ensure buy and sell are different
-        while (randomDexSell === randomDexBuy) {
-          randomDexSell = dexes[Math.floor(Math.random() * dexes.length)];
-        }
-
-        const priceBuy = 1.0 + Math.random() * 0.1;
-        const spreadBps = 50 + Math.floor(Math.random() * 150); // 50-200 bps
-        const priceSell = priceBuy * (1 + spreadBps / 10000);
-
-        const fakeOpp: Opportunity = {
-          pair: 'WMON/USDC',
-          dexBuy: randomDexBuy,
-          dexSell: randomDexSell,
-          priceBuy,
-          priceSell,
-          spreadBps,
-          estimatedProfit: 2 + Math.random() * 8,
-          amountIn: 1,
-          poolBuy: '0x1234567890123456789012345678901234567890',
-          poolSell: '0x0987654321098765432109876543210987654321',
-          poolBorrow: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
-          borrowToken: CONTRACTS.WMON,
-          borrowAmount: '1000000000000000000',
-        };
-
-        setCurrentOpp(fakeOpp);
+        setCurrentOpp(pendingOpp);
         setStep('opportunity');
-        console.log('[DEMO] Generated fake opportunity');
+        console.log('[DEMO] Showing opportunity');
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [step]);
+  }, [step, pendingOpp]);
 
   // Step 6: Watch for arb tx success
   useEffect(() => {
@@ -401,6 +389,8 @@ export default function DemoFlow({ onArbitrageExecuted }: DemoFlowProps) {
                 onClick={() => {
                   setStep('ready');
                   setCurrentOpp(null);
+                  setPendingOpp(null);
+                  prevOppRef.current = 0;
                 }}
                 className="w-full py-2 rounded-md bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 font-mono text-xs transition-colors mt-2"
               >
