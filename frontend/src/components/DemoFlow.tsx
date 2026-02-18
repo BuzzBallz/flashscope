@@ -37,6 +37,7 @@ export default function DemoFlow({ onArbitrageExecuted }: DemoFlowProps) {
   const [mintHash, setMintHash] = useState<string | null>(null);
   const [minimized, setMinimized] = useState(false);
   const [currentOpp, setCurrentOpp] = useState<Opportunity | null>(null);
+  const [pendingOpp, setPendingOpp] = useState<Opportunity | null>(null);
   const prevOppRef = useRef<number>(0);
 
   // wagmi write contract hook for executeArbitrage
@@ -104,7 +105,7 @@ export default function DemoFlow({ onArbitrageExecuted }: DemoFlowProps) {
     mintUsdc();
   }, [step, address]);
 
-  // Step 4: Watch for opportunity
+  // Step 4: Watch for opportunity (don't auto-advance, just store it)
   useEffect(() => {
     if (step !== 'ready' || !lastOpportunity) return;
     // Deduplicate: check if this is a new opportunity
@@ -113,12 +114,29 @@ export default function DemoFlow({ onArbitrageExecuted }: DemoFlowProps) {
     if (oppHash === prevOppRef.current) return;
     prevOppRef.current = oppHash;
 
-    // Only proceed if we have pool addresses (demo mode)
+    // Only store if we have pool addresses (demo mode) - don't auto-advance
     if (lastOpportunity.poolBuy && lastOpportunity.poolSell && lastOpportunity.poolBorrow) {
-      setCurrentOpp(lastOpportunity);
-      setStep('opportunity');
+      setPendingOpp(lastOpportunity);
+      console.log('[DEMO] Opportunity detected - Press SPACE to show it');
     }
   }, [step, lastOpportunity]);
+
+  // Manual trigger: Press Space to show opportunity
+  useEffect(() => {
+    if (step !== 'ready') return;
+
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && pendingOpp) {
+        e.preventDefault();
+        setCurrentOpp(pendingOpp);
+        setStep('opportunity');
+        console.log('[DEMO] Showing opportunity');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [step, pendingOpp]);
 
   // Step 6: Watch for arb tx success
   useEffect(() => {
@@ -264,6 +282,16 @@ export default function DemoFlow({ onArbitrageExecuted }: DemoFlowProps) {
                   Watching 6 DEXs for spread...
                 </span>
               </div>
+              {pendingOpp && (
+                <div className="mt-3 p-2 bg-orange-900/20 border border-orange-600/30 rounded-md">
+                  <div className="font-mono text-xs text-orange-400 font-bold mb-1">
+                    Opportunity Ready!
+                  </div>
+                  <div className="font-mono text-[10px] text-gray-400">
+                    Press <kbd className="px-1 py-0.5 bg-gray-800 border border-gray-600 rounded text-white">SPACE</kbd> to reveal
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
