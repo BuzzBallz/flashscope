@@ -21,27 +21,9 @@ export default function Dashboard() {
   const { lastArbitrage, lastOpportunity } = useData();
 
   const handleArbitrageExecuted = (profit: number) => {
+    console.log('[PROFIT] Manual execution - adding profit:', profit);
     setTotalProfit(prev => prev + profit);
   };
-
-  // Update PnL when opportunities are detected (demo mode)
-  useEffect(() => {
-    if (!lastOpportunity) return;
-    if (lastOpportunity.spreadBps < 50) return;
-
-    const fakeProfit = 2 + Math.random() * 6;
-    console.log('[PROFIT] Desktop - Opportunity detected, adding fake profit:', fakeProfit);
-    setTotalProfit((prev) => prev + fakeProfit);
-  }, [lastOpportunity]);
-
-  // Update PnL when real arbitrage executes (auto mode)
-  useEffect(() => {
-    if (!lastArbitrage) return;
-
-    const fakeProfit = 2 + Math.random() * 6;
-    console.log('[PROFIT] Desktop - Real arb executed, adding fake profit:', fakeProfit);
-    setTotalProfit((prev) => prev + fakeProfit);
-  }, [lastArbitrage]);
 
   useEffect(() => {
     const t = setTimeout(() => setShowHint(false), 3000);
@@ -116,7 +98,7 @@ export default function Dashboard() {
       )}
 
       {/* Demo Flow overlay */}
-      <DemoFlow />
+      <DemoFlow onArbitrageExecuted={handleArbitrageExecuted} />
 
       {/* Resize Hint */}
       {showHint && (

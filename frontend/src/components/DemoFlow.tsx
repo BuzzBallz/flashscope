@@ -24,7 +24,11 @@ const STEPS: Record<Step, StepConfig> = {
 
 const STEP_ORDER: Step[] = ['connect', 'gas', 'mint', 'ready', 'opportunity', 'executing', 'done'];
 
-export default function DemoFlow() {
+interface DemoFlowProps {
+  onArbitrageExecuted?: (profit: number) => void;
+}
+
+export default function DemoFlow({ onArbitrageExecuted }: DemoFlowProps) {
   const { address, isConnected } = useAccount();
   const { lastOpportunity, lastArbitrage, connectionStatus } = useData();
   const [step, setStep] = useState<Step>('connect');
@@ -120,8 +124,11 @@ export default function DemoFlow() {
   useEffect(() => {
     if (step === 'executing' && arbTxSuccess) {
       setStep('done');
+      // Increment PnL with fake profit when tx succeeds
+      const fakeProfit = 2 + Math.random() * 6;
+      onArbitrageExecuted?.(fakeProfit);
     }
-  }, [step, arbTxSuccess]);
+  }, [step, arbTxSuccess, onArbitrageExecuted]);
 
   // Execute the arbitrage via user's wallet
   const handleExecute = () => {
