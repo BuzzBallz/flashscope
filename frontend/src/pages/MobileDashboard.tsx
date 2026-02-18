@@ -470,9 +470,19 @@ export default function MobileDashboard({ isAutoMode, onModeChange }: MobileDash
     setPrevProfit(totalProfit);
   }, [totalProfit]);
 
-  // Auto-send gas when wallet connects
+  // Auto-send gas when wallet connects (once per address, persisted in localStorage)
   useEffect(() => {
-    if (!isConnected || !address || gasSent) return;
+    if (!isConnected || !address) return;
+
+    // Check localStorage to prevent duplicate sends across refreshes
+    const gasReceivedKey = `gas_received_${address.toLowerCase()}`;
+    const alreadyReceived = localStorage.getItem(gasReceivedKey);
+
+    if (alreadyReceived || gasSent) {
+      console.log('[GAS] Already sent to this address, skipping');
+      setGasSent(true);
+      return;
+    }
 
     const sendGas = async () => {
       try {
@@ -483,8 +493,10 @@ export default function MobileDashboard({ isAutoMode, onModeChange }: MobileDash
         });
         const data = await res.json();
         if (res.ok) {
-          console.log('[GAS] Sent 0.1 MON:', data.txHash);
+          console.log('[GAS] Sent 0.5 MON:', data.txHash);
           setGasSent(true);
+          // Mark this address as received in localStorage
+          localStorage.setItem(gasReceivedKey, Date.now().toString());
         } else {
           console.error('[GAS] Error:', data.error);
         }
