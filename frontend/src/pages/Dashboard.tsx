@@ -8,9 +8,6 @@ import NetworkRadar from '../components/NetworkRadar';
 import AnimatedContent from '../components/AnimatedContent/AnimatedContent';
 import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../components/ui/resizable';
-import MobileDashboard from './MobileDashboard';
-import DemoFlow from '../components/DemoFlow';
-import { usePriceReset } from '../hooks/usePriceReset';
 import { useData } from '../contexts/DataContext';
 
 export default function Dashboard() {
@@ -20,33 +17,28 @@ export default function Dashboard() {
   const [totalProfit, setTotalProfit] = useState(0);
   const [showHint, setShowHint] = useState(true);
 
-  const { isResetting, lastResult } = usePriceReset();
   const { lastArbitrage, lastOpportunity } = useData();
 
   const handleArbitrageExecuted = (profit: number) => {
     setTotalProfit(prev => prev + profit);
   };
 
-  // Update PnL when opportunities are detected (demo mode - bot detects but doesn't execute)
+  // Update PnL when opportunities are detected (demo mode)
   useEffect(() => {
     if (!lastOpportunity) return;
-
-    // Only increment for profitable opportunities with > 50bps spread
     if (lastOpportunity.spreadBps < 50) return;
 
-    // Generate fake profit between $2-$8 for visual effect
     const fakeProfit = 2 + Math.random() * 6;
-
-    console.log('[PROFIT] Opportunity detected, adding fake profit:', fakeProfit);
+    console.log('[PROFIT] Desktop - Opportunity detected, adding fake profit:', fakeProfit);
     setTotalProfit((prev) => prev + fakeProfit);
   }, [lastOpportunity]);
 
-  // Also update PnL when real arbitrage executes (auto mode)
+  // Update PnL when real arbitrage executes (auto mode)
   useEffect(() => {
     if (!lastArbitrage) return;
 
     const fakeProfit = 2 + Math.random() * 6;
-    console.log('[PROFIT] Real arb executed, adding fake profit:', fakeProfit);
+    console.log('[PROFIT] Desktop - Real arb executed, adding fake profit:', fakeProfit);
     setTotalProfit((prev) => prev + fakeProfit);
   }, [lastArbitrage]);
 
@@ -56,19 +48,12 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <>
-      {/* Mobile Dashboard (< 1024px) */}
-      <div className="lg:hidden">
-        <MobileDashboard isAutoMode={isAutoMode} onModeChange={setIsAutoMode} />
-      </div>
-
-      {/* Desktop Dashboard (>= 1024px) */}
-      <div className="hidden lg:block w-screen h-screen bg-background relative">
-        <ResizablePanelGroup
-          orientation="vertical"
-          className="h-screen w-screen overflow-hidden"
-          style={{ padding: 0, margin: 0 }}
-        >
+    <div className="w-screen h-screen bg-background relative">
+      <ResizablePanelGroup
+        orientation="vertical"
+        className="h-screen w-screen overflow-hidden"
+        style={{ padding: 0, margin: 0 }}
+      >
 
         {/* Top row — LiveFeed left, ProfitBanner + NetworkRadar right */}
         <ResizablePanel defaultSize={60} minSize={30}>
@@ -98,7 +83,7 @@ export default function Dashboard() {
         <ResizableHandle className="h-1 w-full bg-purple-600/50 hover:bg-purple-400 active:bg-purple-300 transition-colors cursor-row-resize" />
 
         {/* Bottom — PriceMatrix full width */}
-        <ResizablePanel defaultSize={40} minSize={20} className="overflow-hidden">
+        <ResizablePanel defaultSize={40} minSize={20}>
           <PriceMatrix />
         </ResizablePanel>
 
@@ -129,27 +114,12 @@ export default function Dashboard() {
         </div>
       )}
 
-        {/* Demo Flow overlay */}
-        <DemoFlow />
-
-        {/* Hidden price reset indicator (Ctrl+Shift+P) */}
-        {(isResetting || lastResult) && (
-          <div className="fixed bottom-4 right-4 z-50 bg-[#0D0D1F] border border-purple-600/40 px-3 py-2 rounded-lg font-mono text-xs">
-            {isResetting ? (
-              <span className="text-purple-400 animate-pulse">Resetting prices...</span>
-            ) : (
-              <span className="text-lime-400">{lastResult}</span>
-            )}
-          </div>
-        )}
-
-        {/* Resize Hint */}
-        {showHint && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#0D0D1F] border border-purple-600/40 text-gray-400 text-xs px-4 py-2 rounded-full pointer-events-none">
-            Drag the purple handles to resize panels
-          </div>
-        )}
-      </div>
-    </>
+      {/* Resize Hint */}
+      {showHint && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#0D0D1F] border border-purple-600/40 text-gray-400 text-xs px-4 py-2 rounded-full pointer-events-none">
+          Drag the purple handles to resize panels
+        </div>
+      )}
+    </div>
   );
 }
