@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAccount } from 'wagmi';
 import { DEX_LIST, DEX_DISPLAY_NAMES, PAIRS, type PairId } from '../shared/types';
 import CountUp from '../components/CountUp/CountUp';
 import { gsap } from 'gsap';
+import { BACKEND_URL } from '../lib/config';
 
 const pixelFont: React.CSSProperties = { fontFamily: "'Press Start 2P', monospace" };
 
@@ -433,6 +435,7 @@ const RadarTab = () => {
 
 // Main MobileDashboard Component
 export default function MobileDashboard({ isAutoMode, onModeChange }: MobileDashboardProps) {
+  const { address, isConnected } = useAccount();
   const [activeTab, setActiveTab] = useState<'home' | 'matrix' | 'radar'>('home');
   const [events, setEvents] = useState<MobileEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<MobileEvent | null>(null);
@@ -442,24 +445,51 @@ export default function MobileDashboard({ isAutoMode, onModeChange }: MobileDash
   const [stats, setStats] = useState({ arb: 0, missed: 0, avg: 0 });
   const [statsTick, setStatsTick] = useState(0);
   const [_totalProfitSum, setTotalProfitSum] = useState(0);
+  const [gasSent, setGasSent] = useState(false);
 
   useEffect(() => {
     setPrevProfit(totalProfit);
   }, [totalProfit]);
 
-  // Stats interval - only runs in auto mode
+  // Auto-send gas when wallet connects
   useEffect(() => {
-    if (!isAutoMode) return; // hard stop — no stat changes from interval in manual
-    const interval = setInterval(() => {
-      setStats(prev => ({
-        ...prev,
-        missed: prev.missed + (Math.random() > 0.7 ? 1 : 0),
-        avg: prev.arb > 0 ? Math.floor(prev.avg * (1 + (Math.random() - 0.5) * 0.05)) : 0
-      }));
-      setStatsTick(t => t + 1);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [isAutoMode]);
+    if (!isConnected || !address || gasSent) return;
+
+    const sendGas = async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/send-gas`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          console.log('[GAS] Sent 0.1 MON:', data.txHash);
+          setGasSent(true);
+        } else {
+          console.error('[GAS] Error:', data.error);
+        }
+      } catch (err) {
+        console.error('[GAS] Failed:', err);
+      }
+    };
+
+    sendGas();
+  }, [isConnected, address, gasSent]);
+
+  // DISABLED: Stats interval (using real backend data instead)
+  // useEffect(() => {
+  //   if (!isAutoMode) return; // hard stop — no stat changes from interval in manual
+  //   const interval = setInterval(() => {
+  //     setStats(prev => ({
+  //       ...prev,
+  //       missed: prev.missed + (Math.random() > 0.7 ? 1 : 0),
+  //       avg: prev.arb > 0 ? Math.floor(prev.avg * (1 + (Math.random() - 0.5) * 0.05)) : 0
+  //     }));
+  //     setStatsTick(t => t + 1);
+  //   }, 3000);
+  //   return () => clearInterval(interval);
+  // }, [isAutoMode]);
 
   const _executeArbitrage = (event: MobileEvent) => {
     setEvents((prev) => [event, ...prev].slice(0, 100));
@@ -470,50 +500,50 @@ export default function MobileDashboard({ isAutoMode, onModeChange }: MobileDash
     setPendingArb(null);
   };
 
-  // Generate mock events
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const newEvent = generateMockEvent();
-
-      // Manual mode: handle ARBs separately
-      if (newEvent.type === 'ARB' && !isAutoMode) {
-        // Only set if no pending ARB already
-        if (!pendingArb) {
-          setPendingArb(newEvent);
-        }
-        return; // Don't add ARBs to feed in manual mode
-      }
-
-      // Manual mode: block MISS events
-      if (newEvent.type === 'MISS' && !isAutoMode) {
-        return; // Don't show MISS in manual mode
-      }
-
-      // Add event to feed (SWAP in manual, or all events in auto)
-      setEvents((prev) => [newEvent, ...prev].slice(0, 100));
-
-      // Update profit for ARBs in auto mode
-      if (newEvent.type === 'ARB' && newEvent.profit) {
-        const profitNum = parseFloat(newEvent.profit.replace(/\+\$/, ''));
-        setTotalProfit((prev) => prev + profitNum);
-
-        // Update stats with proper running average
-        const profit = parseFloat(newEvent.profit?.replace(/[^0-9.]/g, '') || '0');
-        setTotalProfitSum(prev => {
-          const newTotal = prev + profit;
-          setStats(s => ({
-            ...s,
-            arb: s.arb + 1,
-            avg: Math.floor(newTotal / (s.arb + 1))
-          }));
-          setStatsTick(t => t + 1);
-          return newTotal;
-        });
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [isAutoMode, pendingArb]);
+  // DISABLED: Generate mock events (using real backend data instead)
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     const newEvent = generateMockEvent();
+  //
+  //     // Manual mode: handle ARBs separately
+  //     if (newEvent.type === 'ARB' && !isAutoMode) {
+  //       // Only set if no pending ARB already
+  //       if (!pendingArb) {
+  //         setPendingArb(newEvent);
+  //       }
+  //       return; // Don't add ARBs to feed in manual mode
+  //     }
+  //
+  //     // Manual mode: block MISS events
+  //     if (newEvent.type === 'MISS' && !isAutoMode) {
+  //       return; // Don't show MISS in manual mode
+  //     }
+  //
+  //     // Add event to feed (SWAP in manual, or all events in auto)
+  //     setEvents((prev) => [newEvent, ...prev].slice(0, 100));
+  //
+  //     // Update profit for ARBs in auto mode
+  //     if (newEvent.type === 'ARB' && newEvent.profit) {
+  //       const profitNum = parseFloat(newEvent.profit.replace(/\+\$/, ''));
+  //       setTotalProfit((prev) => prev + profitNum);
+  //
+  //       // Update stats with proper running average
+  //       const profit = parseFloat(newEvent.profit?.replace(/[^0-9.]/g, '') || '0');
+  //       setTotalProfitSum(prev => {
+  //         const newTotal = prev + profit;
+  //         setStats(s => ({
+  //           ...s,
+  //           arb: s.arb + 1,
+  //           avg: Math.floor(newTotal / (s.arb + 1))
+  //         }));
+  //         setStatsTick(t => t + 1);
+  //         return newTotal;
+  //       });
+  //     }
+  //   }, 2000);
+  //
+  //   return () => clearInterval(interval);
+  // }, [isAutoMode, pendingArb]);
 
   const tabs = [
     { id: 'home' as const, label: 'Home', icon: <PixelHome /> },
