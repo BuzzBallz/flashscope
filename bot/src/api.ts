@@ -99,7 +99,7 @@ function json(res: ServerResponse, status: number, data: any) {
 }
 
 // ============================================================
-// POST /api/send-gas  — Send 0.1 MON to user wallet for gas
+// POST /api/send-gas  — Send 0.5 MON to user wallet for gas
 // Body: { address: "0x..." }
 // ============================================================
 async function handleSendGas(req: IncomingMessage, res: ServerResponse) {
@@ -111,10 +111,10 @@ async function handleSendGas(req: IncomingMessage, res: ServerResponse) {
   try {
     const txHash = await walletClient.sendTransaction({
       to: address as Address,
-      value: parseEther("0.1"),
+      value: parseEther("0.5"),
     });
-    console.log(`[API] Sent 0.1 MON to ${address}: ${txHash}`);
-    json(res, 200, { txHash, amount: "0.1 MON" });
+    console.log(`[API] Sent 0.5 MON to ${address}: ${txHash}`);
+    json(res, 200, { txHash, amount: "0.5 MON" });
   } catch (err: any) {
     console.error("[API] send-gas error:", err.message);
     json(res, 500, { error: err.message });
