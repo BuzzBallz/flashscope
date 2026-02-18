@@ -197,7 +197,7 @@ export default function ProfitBanner({ isAutoMode, onModeChange, totalProfit }: 
         </StarBorder>
       </div>
 
-      {/* Mock mode indicator */}
+      {/* Demo mode indicator */}
       {isMockMode && (
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
@@ -205,7 +205,7 @@ export default function ProfitBanner({ isAutoMode, onModeChange, totalProfit }: 
           className="flex items-center gap-1 bg-accent/20 px-2 py-1 rounded text-xs font-mono text-accent"
         >
           <span>🎭</span>
-          <span>MOCK MODE</span>
+          <span>DEMO MODE</span>
         </motion.div>
       )}
     </div>
