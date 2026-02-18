@@ -5,6 +5,7 @@ import { DEX_LIST, DEX_DISPLAY_NAMES, PAIRS, type PairId } from '../shared/types
 import CountUp from '../components/CountUp/CountUp';
 import { gsap } from 'gsap';
 import { BACKEND_URL } from '../lib/config';
+import { useData } from '../contexts/DataContext';
 
 const pixelFont: React.CSSProperties = { fontFamily: "'Press Start 2P', monospace" };
 
@@ -318,22 +319,16 @@ const HomeTab = ({ totalProfit, prevProfit, events, onSelectEvent, isAutoMode, o
 // PairCard Component
 interface PairCardProps {
   pair: PairId;
+  realPrices?: Array<{ dex: string; price: number; }>;
 }
 
-const PairCard = ({ pair }: PairCardProps) => {
+const PairCard = ({ pair, realPrices }: PairCardProps) => {
   const [expanded, setExpanded] = useState(false);
 
-  // Mock prices for each DEX
-  const basePrices: Record<PairId, number> = {
-    'WMON/USDC': 22.0,
-    'WETH/USDC': 2841.0,
-    'WMON/WETH': 0.00036
-  };
-
-  const basePrice = basePrices[pair];
-  const prices = DEX_LIST.map(dex => ({
+  // Use real prices if available, otherwise fallback to mock
+  const prices = realPrices && realPrices.length > 0 ? realPrices : DEX_LIST.map(dex => ({
     dex: DEX_DISPLAY_NAMES[dex],
-    price: basePrice * (1 + (Math.random() - 0.5) * 0.01)
+    price: pair === 'WMON/USDC' ? 22.0 : pair === 'WETH/USDC' ? 2841.0 : 0.00036
   }));
 
   const minPrice = Math.min(...prices.map(p => p.price));
@@ -380,15 +375,38 @@ const PairCard = ({ pair }: PairCardProps) => {
   );
 };
 
-// MatrixTab Component — card style
-const MatrixTab = () => (
-  <div className="h-full overflow-y-auto px-4 py-4 space-y-3">
-    <p className="text-gray-600 text-[7px] uppercase tracking-widest mb-2" style={pixelFont}>Live Prices</p>
-    {PAIRS.map((pair) => (
-      <PairCard key={pair} pair={pair} />
-    ))}
-  </div>
-);
+// MatrixTab Component — card style with real backend prices
+interface MatrixTabProps {
+  backendPrices: any[];
+}
+
+const MatrixTab = ({ backendPrices }: MatrixTabProps) => {
+  // Convert backend price format to PairCard format
+  const getPricesForPair = (pair: PairId) => {
+    if (!backendPrices || backendPrices.length === 0) return undefined;
+
+    // Filter prices for this specific pair
+    const pairPrices = backendPrices
+      .filter(p => p.pair === pair)
+      .map(p => ({
+        dex: DEX_DISPLAY_NAMES[p.dex as keyof typeof DEX_DISPLAY_NAMES] || p.dex,
+        price: p.price
+      }));
+
+    return pairPrices.length > 0 ? pairPrices : undefined;
+  };
+
+  return (
+    <div className="h-full overflow-y-auto px-4 py-4 space-y-3">
+      <p className="text-gray-600 text-[7px] uppercase tracking-widest mb-2" style={pixelFont}>
+        Live Prices {backendPrices && backendPrices.length > 0 && <span className="text-lime-400">● LIVE</span>}
+      </p>
+      {PAIRS.map((pair) => (
+        <PairCard key={pair} pair={pair} realPrices={getPricesForPair(pair)} />
+      ))}
+    </div>
+  );
+};
 
 // RadarTab Component — DEX health cards
 const RadarTab = () => {
@@ -436,6 +454,7 @@ const RadarTab = () => {
 // Main MobileDashboard Component
 export default function MobileDashboard({ isAutoMode, onModeChange }: MobileDashboardProps) {
   const { address, isConnected } = useAccount();
+  const { prices, connectionStatus } = useData();
   const [activeTab, setActiveTab] = useState<'home' | 'matrix' | 'radar'>('home');
   const [events, setEvents] = useState<MobileEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<MobileEvent | null>(null);
@@ -590,7 +609,7 @@ export default function MobileDashboard({ isAutoMode, onModeChange }: MobileDash
               transition={{ duration: 0.15 }}
               className="h-full"
             >
-              <MatrixTab />
+              <MatrixTab backendPrices={prices} />
             </motion.div>
           )}
           {activeTab === 'radar' && (
