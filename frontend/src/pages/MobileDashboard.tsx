@@ -500,50 +500,20 @@ export default function MobileDashboard({ isAutoMode, onModeChange }: MobileDash
     setPendingArb(null);
   };
 
-  // DISABLED: Generate mock events (using real backend data instead)
-  // useEffect(() => {
-  //   const interval = setInterval(() => {
-  //     const newEvent = generateMockEvent();
-  //
-  //     // Manual mode: handle ARBs separately
-  //     if (newEvent.type === 'ARB' && !isAutoMode) {
-  //       // Only set if no pending ARB already
-  //       if (!pendingArb) {
-  //         setPendingArb(newEvent);
-  //       }
-  //       return; // Don't add ARBs to feed in manual mode
-  //     }
-  //
-  //     // Manual mode: block MISS events
-  //     if (newEvent.type === 'MISS' && !isAutoMode) {
-  //       return; // Don't show MISS in manual mode
-  //     }
-  //
-  //     // Add event to feed (SWAP in manual, or all events in auto)
-  //     setEvents((prev) => [newEvent, ...prev].slice(0, 100));
-  //
-  //     // Update profit for ARBs in auto mode
-  //     if (newEvent.type === 'ARB' && newEvent.profit) {
-  //       const profitNum = parseFloat(newEvent.profit.replace(/\+\$/, ''));
-  //       setTotalProfit((prev) => prev + profitNum);
-  //
-  //       // Update stats with proper running average
-  //       const profit = parseFloat(newEvent.profit?.replace(/[^0-9.]/g, '') || '0');
-  //       setTotalProfitSum(prev => {
-  //         const newTotal = prev + profit;
-  //         setStats(s => ({
-  //           ...s,
-  //           arb: s.arb + 1,
-  //           avg: Math.floor(newTotal / (s.arb + 1))
-  //         }));
-  //         setStatsTick(t => t + 1);
-  //         return newTotal;
-  //       });
-  //     }
-  //   }, 2000);
-  //
-  //   return () => clearInterval(interval);
-  // }, [isAutoMode, pendingArb]);
+  // Generate mock SWAP events for visual activity (no profit auto-increment)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const newEvent = generateMockEvent();
+
+      // Only show SWAP events for visual activity
+      // Profits will only update from real backend or manual triggers
+      if (newEvent.type === 'SWAP') {
+        setEvents((prev) => [newEvent, ...prev].slice(0, 100));
+      }
+    }, 3000); // Every 3 seconds for visual activity
+
+    return () => clearInterval(interval);
+  }, []);
 
   const tabs = [
     { id: 'home' as const, label: 'Home', icon: <PixelHome /> },
