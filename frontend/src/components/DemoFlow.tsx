@@ -288,10 +288,11 @@ export default function DemoFlow({ onArbitrageExecuted }: DemoFlowProps) {
               <div className="font-mono text-xs text-gray-400">
                 Wallet funded. Waiting for arbitrage...
               </div>
-              <div className="mt-3 p-2 bg-purple-900/20 border border-purple-600/30 rounded-md">
-                <div className="font-mono text-[10px] text-gray-400 text-center">
-                  Press <kbd className="px-1 py-0.5 bg-gray-800 border border-gray-600 rounded text-white">SPACE</kbd> to simulate opportunity
-                </div>
+              <div className="flex items-center gap-2 mt-1">
+                <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+                <span className="font-mono text-xs text-purple-400 animate-pulse">
+                  Scanning 6 DEXs for opportunities...
+                </span>
               </div>
             </div>
           )}
