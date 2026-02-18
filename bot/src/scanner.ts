@@ -9,6 +9,7 @@ import {
   ENV,
   CHAIN,
   POOLS,
+  TOKENS,
   INFRA,
   SIMPLE_POOL_ABI,
 } from "./config.js";
@@ -26,6 +27,7 @@ let client: PublicClient;
 let scanInterval: ReturnType<typeof setInterval> | null = null;
 let lastBlockNumber = 0n;
 let blockTimes: number[] = [];
+let demoMode = false;
 
 /**
  * Read getPrice() from all 6 custom SimplePool instances via multicall.
@@ -175,6 +177,12 @@ async function scanCycle(): Promise<void> {
 
         // Broadcast opportunity + trigger executor if profitable
         if (s.profitable && lowPool && highPool) {
+          // Pick a neutral borrow pool (not buy or sell)
+          const borrowPool = POOLS.find(
+            (p) => p.address !== lowPool.address && p.address !== highPool.address
+          );
+          const borrowAmount = (1n * 10n ** 18n).toString(); // 1 WMON
+
           const opp: Opportunity = {
             pair: "WMON/USDC" as PairId,
             dexBuy: lowPool.dexId,
@@ -182,18 +190,29 @@ async function scanCycle(): Promise<void> {
             priceBuy: s.priceLow,
             priceSell: s.priceHigh,
             spreadBps: s.spreadBps,
-            estimatedProfit: 0, // estimated after simulation
-            amountIn: 1, // 1 WMON borrow
+            estimatedProfit: 0,
+            amountIn: 1,
+            // Pool addresses for frontend tx construction
+            poolBuy: lowPool.address,
+            poolSell: highPool.address,
+            poolBorrow: borrowPool?.address,
+            borrowToken: TOKENS.WMON,
+            borrowAmount,
           };
           broadcast({ type: "OPPORTUNITY_DETECTED", data: opp });
 
-          tryExecuteArbitrage({
-            cheapPool: lowPool,
-            expensivePool: highPool,
-            spreadBps: s.spreadBps,
-            priceLow: s.priceLow,
-            priceHigh: s.priceHigh,
-          });
+          // In demo mode, don't auto-execute — let the user sign the tx
+          if (!demoMode) {
+            tryExecuteArbitrage({
+              cheapPool: lowPool,
+              expensivePool: highPool,
+              spreadBps: s.spreadBps,
+              priceLow: s.priceLow,
+              priceHigh: s.priceHigh,
+            });
+          } else {
+            console.log("[SCAN] Demo mode — skipping auto-execute, waiting for user tx");
+          }
         }
       }
     }
@@ -207,7 +226,8 @@ async function scanCycle(): Promise<void> {
 /**
  * Start the scanner loop.
  */
-export function startScanner(intervalMs = 2000): void {
+export function startScanner(intervalMs = 2000, demo = true): void {
+  demoMode = demo;
   const monad = defineChain({
     id: CHAIN.ID,
     name: CHAIN.NAME,

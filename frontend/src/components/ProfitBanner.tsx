@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { CircleIcon } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import CountUp from './CountUp/CountUp';
@@ -83,7 +83,7 @@ interface ProfitBannerProps {
   totalProfit: number;
 }
 
-export default function ProfitBanner({ isAutoMode, onModeChange, totalProfit }: ProfitBannerProps) {
+export default function ProfitBanner({ isAutoMode, onModeChange, totalProfit: _totalProfit }: ProfitBannerProps) {
   const { blockInfo, lastArbitrage, connectionStatus, reconnect, isMockMode } = useData();
   const [mockProfit, setMockProfit] = useState(0);
   const [prevBalance, setPrevBalance] = useState(0);
@@ -99,22 +99,16 @@ export default function ProfitBanner({ isAutoMode, onModeChange, totalProfit }: 
     }
   }, [connectionStatus]);
 
-  // Update previous balance when totalProfit changes
-  useEffect(() => {
-    setPrevBalance(totalProfit);
-  }, [totalProfit]);
-
+  // Real profit from backend (cumulativeProfit) or mock fallback
   const profit = lastArbitrage?.cumulativeProfit ?? mockProfit;
+
+  // Update previous balance when profit changes (for CountUp animation)
+  useEffect(() => {
+    setPrevBalance(profit);
+  }, [profit]);
   const tradeCount = lastArbitrage?.tradeCount ?? 0;
   const blockNumber = blockInfo?.number ?? null;
   const avgBlockTime = blockInfo?.avgBlockTimeMs ?? null;
-
-  const formatProfit = (value: number) => {
-    return value.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  };
 
   const getConnectionColor = () => {
     switch (connectionStatus) {
@@ -149,7 +143,7 @@ export default function ProfitBanner({ isAutoMode, onModeChange, totalProfit }: 
           $
           <CountUp
             from={prevBalance}
-            to={totalProfit}
+            to={profit}
             duration={0.6}
             className="font-bold tabular-nums"
             style={{
@@ -203,7 +197,6 @@ export default function ProfitBanner({ isAutoMode, onModeChange, totalProfit }: 
           onClick={() => onModeChange(!isAutoMode)}
           color={isAutoMode ? '#84cc16' : '#6b7280'}
           speed={isAutoMode ? '3s' : '8s'}
-          thickness={1}
           className="text-xs font-mono"
         >
           <div className={`flex items-center gap-2 px-1 py-0.5 rounded transition-colors ${

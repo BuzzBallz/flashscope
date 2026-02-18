@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DEX_LIST, DEX_DISPLAY_NAMES, PAIRS, type DexId, type PairId } from '../shared/types';
+import { DEX_LIST, DEX_DISPLAY_NAMES, PAIRS, type PairId } from '../shared/types';
 import CountUp from '../components/CountUp/CountUp';
 import { gsap } from 'gsap';
 
@@ -441,7 +441,7 @@ export default function MobileDashboard({ isAutoMode, onModeChange }: MobileDash
   const [prevProfit, setPrevProfit] = useState(0);
   const [stats, setStats] = useState({ arb: 0, missed: 0, avg: 0 });
   const [statsTick, setStatsTick] = useState(0);
-  const [totalProfitSum, setTotalProfitSum] = useState(0);
+  const [_totalProfitSum, setTotalProfitSum] = useState(0);
 
   useEffect(() => {
     setPrevProfit(totalProfit);
@@ -461,7 +461,7 @@ export default function MobileDashboard({ isAutoMode, onModeChange }: MobileDash
     return () => clearInterval(interval);
   }, [isAutoMode]);
 
-  const executeArbitrage = (event: MobileEvent) => {
+  const _executeArbitrage = (event: MobileEvent) => {
     setEvents((prev) => [event, ...prev].slice(0, 100));
     if (event.profit) {
       const profitNum = parseFloat(event.profit.replace(/\+\$/, ''));

@@ -6,3 +6,4 @@ cache/
 broadcast/
 data/replay.json
 *.log
+commands.txt

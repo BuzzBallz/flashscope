@@ -1,22 +1,31 @@
 import { WebSocketServer, WebSocket } from "ws";
+import { createServer, type Server as HttpServer } from "http";
 import { ENV } from "./config.js";
 import type { WSMessage } from "./shared/types.js";
+import { handleHttpRequest } from "./api.js";
 
 let wss: WebSocketServer | null = null;
+let httpServer: HttpServer | null = null;
 
 /**
- * Start the WebSocket server on ENV.WS_PORT.
- * Returns the server instance so scanner/index can broadcast messages.
+ * Start the combined HTTP + WebSocket server on ENV.WS_PORT.
+ * HTTP routes are handled by api.ts, WS upgrades are handled here.
  */
 export function startWSServer(): WebSocketServer {
-  wss = new WebSocketServer({ port: ENV.WS_PORT });
+  httpServer = createServer(handleHttpRequest);
+  wss = new WebSocketServer({ server: httpServer });
 
   wss.on("connection", (ws, req) => {
     const clientIp = req.socket.remoteAddress || "unknown";
     console.log(`[WS] Client connected from ${clientIp} (total: ${wss!.clients.size})`);
 
     // Send a welcome ping so the frontend knows connection is live
-    ws.send(JSON.stringify({ type: "BLOCK_UPDATE", data: { number: 0, timestamp: Date.now(), txCount: 0, avgBlockTimeMs: 400 } }));
+    ws.send(
+      JSON.stringify({
+        type: "BLOCK_UPDATE",
+        data: { number: 0, timestamp: Date.now(), txCount: 0, avgBlockTimeMs: 400 },
+      })
+    );
 
     ws.on("close", () => {
       console.log(`[WS] Client disconnected (total: ${wss!.clients.size})`);
@@ -31,7 +40,10 @@ export function startWSServer(): WebSocketServer {
     console.error("[WS] Server error:", err);
   });
 
-  console.log(`[WS] Server listening on ws://localhost:${ENV.WS_PORT}`);
+  httpServer.listen(ENV.WS_PORT, () => {
+    console.log(`[WS] Server listening on http://localhost:${ENV.WS_PORT} (WS + HTTP API)`);
+  });
+
   return wss;
 }
 
@@ -56,15 +68,26 @@ export function clientCount(): number {
 }
 
 /**
- * Gracefully close the WS server.
+ * Gracefully close both HTTP and WS servers.
  */
 export function stopWSServer(): Promise<void> {
   return new Promise((resolve) => {
-    if (!wss) { resolve(); return; }
-    wss.close(() => {
-      console.log("[WS] Server closed");
-      wss = null;
+    if (!wss) {
       resolve();
+      return;
+    }
+    wss.close(() => {
+      console.log("[WS] WebSocket server closed");
+      wss = null;
+      if (httpServer) {
+        httpServer.close(() => {
+          console.log("[WS] HTTP server closed");
+          httpServer = null;
+          resolve();
+        });
+      } else {
+        resolve();
+      }
     });
   });
 }

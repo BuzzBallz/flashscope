@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { DEX_LIST, PAIRS, type DexId, type PairId } from '../shared/types';
+import { DEX_LIST, DEX_DISPLAY_NAMES, PAIRS, type DexId, type PairId } from '../shared/types';
+import { useData } from '../contexts/DataContext';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 // Inline GlitchText component
@@ -100,104 +101,116 @@ interface ArbitrageCell {
   dex: DexId;
 }
 
-// Base prices for mock data
+// Base prices for mock data — WMON/USDC matches real range for smooth transitions
 const BASE_PRICES: Record<PairId, number> = {
-  'WMON/USDC': 1.0234,
+  'WMON/USDC': 22.00,
   'WETH/USDC': 2841.2,
   'WMON/WETH': 0.000360,
 };
 
 const generateMockPrices = (): PriceData => {
   const prices: PriceData = {};
-
   PAIRS.forEach((pair) => {
     prices[pair] = {};
     const basePrice = BASE_PRICES[pair];
-
     DEX_LIST.forEach((dex) => {
-      // Add random variance ±0.5%
       const variance = (Math.random() - 0.5) * 0.01 * basePrice;
       prices[pair][dex] = basePrice + variance;
     });
   });
-
   return prices;
 };
 
-const findArbitrageOpportunity = (prices: PriceData): ArbitrageCell[] | null => {
-  // Randomly trigger arbitrage on one pair
-  if (Math.random() > 0.3) return null; // 70% chance of arbitrage
-
-  const pair = PAIRS[Math.floor(Math.random() * PAIRS.length)];
-  const pairPrices = prices[pair];
-
-  // Find min and max DEXs
-  let minDex: DexId = DEX_LIST[0];
-  let maxDex: DexId = DEX_LIST[0];
-  let minPrice = Infinity;
-  let maxPrice = -Infinity;
-
-  DEX_LIST.forEach((dex) => {
-    const price = pairPrices[dex];
-    if (price < minPrice) {
-      minPrice = price;
-      minDex = dex;
-    }
-    if (price > maxPrice) {
-      maxPrice = price;
-      maxDex = dex;
-    }
-  });
-
-  return [
-    { pair, dex: minDex },
-    { pair, dex: maxDex },
-  ];
-};
-
 export default function PriceMatrix() {
-  const [prices, setPrices] = useState<PriceData>(generateMockPrices());
+  const { prices: realPrices, isMockMode, lastArbitrage } = useData();
+  const [mockPrices, setMockPrices] = useState<PriceData>(() => generateMockPrices());
   const [arbCells, setArbCells] = useState<ArbitrageCell[] | null>(null);
   const [glitchingCells, setGlitchingCells] = useState<Set<string>>(new Set());
-  const prevPricesRef = useRef<PriceData>(prices);
+  const prevPricesRef = useRef<PriceData>({});
   const [selectedPair, setSelectedPair] = useState<string | null>(null);
   const [chartData, setChartData] = useState<{ time: string; price: number }[]>([]);
   const [yDomain, setYDomain] = useState<[number, number]>([0, 1]);
 
+  // Build merged prices: real WMON/USDC when available, mock for everything else
+  const prices = useMemo(() => {
+    const merged: PriceData = {};
+
+    PAIRS.forEach((pair) => {
+      if (pair === 'WMON/USDC' && !isMockMode && realPrices.length > 0) {
+        // Use real backend prices for WMON/USDC
+        const realMap: { [dex: string]: number } = {};
+        realPrices
+          .filter(p => p.pair === 'WMON/USDC')
+          .forEach(p => { realMap[p.dex] = p.price; });
+
+        if (Object.keys(realMap).length >= DEX_LIST.length) {
+          merged[pair] = realMap;
+          return;
+        }
+      }
+      // Fallback to mock for this pair
+      merged[pair] = mockPrices[pair] || {};
+    });
+
+    return merged;
+  }, [mockPrices, realPrices, isMockMode]);
+
+  // Timer: update mock prices every 2 seconds (for WETH/USDC, WMON/WETH, and WMON/USDC fallback)
   useEffect(() => {
-    // Update prices every 2 seconds
     const interval = setInterval(() => {
-      const newPrices = generateMockPrices();
+      setMockPrices(generateMockPrices());
 
-      // Detect price changes for glitch effect
-      const newGlitching = new Set<string>();
-      PAIRS.forEach((pair) => {
-        DEX_LIST.forEach((dex) => {
-          const oldPrice = prevPricesRef.current[pair]?.[dex];
-          const newPrice = newPrices[pair]?.[dex];
-          if (oldPrice && newPrice && Math.abs(newPrice - oldPrice) > 0.0001) {
-            newGlitching.add(`${pair}-${dex}`);
-          }
-        });
-      });
-
-      setGlitchingCells(newGlitching);
-      setTimeout(() => setGlitchingCells(new Set()), 600);
-
-      setPrices(newPrices);
-      prevPricesRef.current = newPrices;
-
-      // Check for arbitrage opportunity
-      const arb = findArbitrageOpportunity(newPrices);
-      if (arb) {
-        setArbCells(arb);
-        // Clear arbitrage highlight after animation
+      // Random arbitrage highlight for mock pairs only
+      if (Math.random() < 0.3) {
+        const mockPairs: PairId[] = ['WETH/USDC', 'WMON/WETH'];
+        if (isMockMode) mockPairs.push('WMON/USDC');
+        const pair = mockPairs[Math.floor(Math.random() * mockPairs.length)];
+        const dexes = [...DEX_LIST];
+        const minDex = dexes[Math.floor(Math.random() * dexes.length)];
+        const maxDex = dexes.filter(d => d !== minDex)[Math.floor(Math.random() * (dexes.length - 1))];
+        setArbCells([{ pair, dex: minDex }, { pair, dex: maxDex }]);
         setTimeout(() => setArbCells(null), 1500);
       }
     }, 2000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [isMockMode]);
+
+  // Detect price changes for glitch effect
+  useEffect(() => {
+    const newGlitching = new Set<string>();
+    PAIRS.forEach((pair) => {
+      DEX_LIST.forEach((dex) => {
+        const oldPrice = prevPricesRef.current[pair]?.[dex];
+        const newPrice = prices[pair]?.[dex];
+        if (oldPrice && newPrice && Math.abs(newPrice - oldPrice) > 0.0001) {
+          newGlitching.add(`${pair}-${dex}`);
+        }
+      });
+    });
+
+    if (newGlitching.size > 0) {
+      setGlitchingCells(newGlitching);
+      const timer = setTimeout(() => setGlitchingCells(new Set()), 600);
+      prevPricesRef.current = prices;
+      return () => clearTimeout(timer);
+    }
+    prevPricesRef.current = prices;
+  }, [prices]);
+
+  // Real arbitrage highlight for WMON/USDC from backend
+  const prevArbTimestamp = useRef(0);
+  useEffect(() => {
+    if (!lastArbitrage || isMockMode) return;
+    if (lastArbitrage.timestamp === prevArbTimestamp.current) return;
+    prevArbTimestamp.current = lastArbitrage.timestamp;
+
+    setArbCells([
+      { pair: lastArbitrage.pair, dex: lastArbitrage.dexBuy },
+      { pair: lastArbitrage.pair, dex: lastArbitrage.dexSell },
+    ]);
+    setTimeout(() => setArbCells(null), 1500);
+  }, [lastArbitrage, isMockMode]);
 
   // Live chart updates
   useEffect(() => {
@@ -216,25 +229,25 @@ export default function PriceMatrix() {
     return () => clearInterval(interval);
   }, [selectedPair]);
 
-  // Update Y domain smoothly to prevent jumpy rescaling
+  // Update Y domain smoothly
   useEffect(() => {
     if (chartData.length < 2) return;
-    const prices = chartData.map(d => d.price);
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
+    const chartPrices = chartData.map(d => d.price);
+    const min = Math.min(...chartPrices);
+    const max = Math.max(...chartPrices);
     const padding = (max - min) * 0.3 || 0.001;
     setYDomain([min - padding, max + padding]);
   }, [chartData]);
 
   const formatPrice = (pair: PairId, price: number) => {
-    if (pair === 'WMON/WETH') {
-      return price.toFixed(6);
-    }
+    if (pair === 'WMON/WETH') return price.toFixed(6);
+    if (pair === 'WMON/USDC') return price.toFixed(4);
     return price.toFixed(4);
   };
 
   const findMinMaxForPair = (pair: PairId) => {
     const pairPrices = prices[pair];
+    if (!pairPrices) return { minDex: null, maxDex: null };
     let minDex: DexId | null = null;
     let maxDex: DexId | null = null;
     let minPrice = Infinity;
@@ -242,14 +255,9 @@ export default function PriceMatrix() {
 
     DEX_LIST.forEach((dex) => {
       const price = pairPrices[dex];
-      if (price < minPrice) {
-        minPrice = price;
-        minDex = dex;
-      }
-      if (price > maxPrice) {
-        maxPrice = price;
-        maxDex = dex;
-      }
+      if (price == null) return;
+      if (price < minPrice) { minPrice = price; minDex = dex; }
+      if (price > maxPrice) { maxPrice = price; maxDex = dex; }
     });
 
     return { minDex, maxDex };
@@ -261,11 +269,11 @@ export default function PriceMatrix() {
 
   const handleRowClick = (pair: PairId) => {
     setSelectedPair(pair);
-    // Initialize chart with last 10 mock points
-    const basePrice = BASE_PRICES[pair];
+    // Initialize chart — use current price from the first DEX
+    const currentPrice = prices[pair]?.[DEX_LIST[0]] || BASE_PRICES[pair];
     const initialData = Array.from({ length: 10 }, (_, i) => ({
       time: new Date(Date.now() - (9 - i) * 1000).toLocaleTimeString(),
-      price: basePrice * (1 + (Math.random() - 0.5) * 0.005)
+      price: currentPrice * (1 + (Math.random() - 0.5) * 0.005)
     }));
     setChartData(initialData);
   };
@@ -283,7 +291,7 @@ export default function PriceMatrix() {
               <th className="text-left py-3 px-3 text-muted font-semibold">PAIR</th>
               {DEX_LIST.map((dex) => (
                 <th key={dex} className="text-center py-3 px-3 text-muted font-semibold uppercase">
-                  {dex.replace('_', ' ')}
+                  {DEX_DISPLAY_NAMES[dex]}
                 </th>
               ))}
             </tr>
@@ -291,6 +299,21 @@ export default function PriceMatrix() {
           <tbody>
             {PAIRS.map((pair) => {
               const { minDex, maxDex } = findMinMaxForPair(pair);
+              const pairPrices = prices[pair];
+
+              // Loading state for WMON/USDC when waiting for real data
+              if (pair === 'WMON/USDC' && !isMockMode && realPrices.length === 0) {
+                return (
+                  <tr key={pair} className="h-12 border-b border-purple-600/20">
+                    <td className="py-3 px-3 font-semibold text-white">{pair}</td>
+                    {DEX_LIST.map((dex) => (
+                      <td key={dex} className="text-center py-3 px-3 text-muted animate-pulse">
+                        ---
+                      </td>
+                    ))}
+                  </tr>
+                );
+              }
 
               return (
                 <tr
@@ -300,7 +323,9 @@ export default function PriceMatrix() {
                 >
                   <td className="py-3 px-3 font-semibold text-white">{pair}</td>
                   {DEX_LIST.map((dex) => {
-                    const price = prices[pair][dex];
+                    const price = pairPrices?.[dex];
+                    if (price == null) return <td key={dex} className="text-center py-3 px-3 text-muted">---</td>;
+
                     const isMin = dex === minDex;
                     const isMax = dex === maxDex;
                     const isArb = isCellInArbitrage(pair, dex);
@@ -376,7 +401,7 @@ export default function PriceMatrix() {
           `}</style>
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-white font-bold text-lg">{selectedPair}</h3>
-            <button onClick={() => setSelectedPair(null)} className="text-gray-400 hover:text-white">✕</button>
+            <button onClick={() => setSelectedPair(null)} className="text-gray-400 hover:text-white">&#x2715;</button>
           </div>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData}>
@@ -390,7 +415,7 @@ export default function PriceMatrix() {
               <YAxis domain={yDomain} hide />
               <Tooltip
                 contentStyle={{ background: '#0A0A1A', border: '1px solid #8c00ff', color: '#fff' }}
-                formatter={(value: number) => [value.toFixed(4), 'Price']}
+                formatter={(value: number | undefined) => [value !== undefined ? value.toFixed(4) : '', 'Price']}
               />
               <Area
                 type="linear"

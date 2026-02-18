@@ -27,7 +27,7 @@ interface ChartTooltipProps {
   content?: React.ComponentType<any>
 }
 
-export const ChartTooltip: React.FC<ChartTooltipProps> = ({ content }) => {
+export const ChartTooltip: React.FC<ChartTooltipProps> = ({ content: _content }) => {
   return null // Recharts handles tooltip rendering
 }
 
@@ -40,7 +40,7 @@ interface ChartTooltipContentProps {
 export const ChartTooltipContent: React.FC<ChartTooltipContentProps> = ({
   active,
   payload,
-  label,
+  label: _label,
 }) => {
   if (!active || !payload || !payload.length) {
     return null

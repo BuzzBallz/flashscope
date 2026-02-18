@@ -59,6 +59,12 @@ export interface Opportunity {
   spreadBps: number;
   estimatedProfit: number; // in USD
   amountIn: number; // borrowed amount
+  // Pool addresses for frontend tx construction (demo mode)
+  poolBuy?: string;
+  poolSell?: string;
+  poolBorrow?: string;
+  borrowToken?: string;
+  borrowAmount?: string; // hex-encoded bigint
 }
 
 export interface ArbitrageResult {
@@ -101,9 +107,10 @@ export type WSMessage =
   | { type: "ARBITRAGE_FAILED"; data: FailureInfo }
   | { type: "BLOCK_UPDATE"; data: BlockInfo };
 
-// --- WebSocket Connection Config ---
+// --- Connection Config ---
 export const WS_PORT = 8080;
 export const WS_URL = `ws://localhost:${WS_PORT}`;
+export const BACKEND_URL = `http://localhost:${WS_PORT}`;
 
 // --- Mock Data for Frontend Development ---
 // Dev B: use these to build and test the UI before the backend is ready.

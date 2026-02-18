@@ -10,10 +10,8 @@ import ShinyText from '../components/ShinyText/ShinyText';
 import AnimatedContent from '../components/AnimatedContent/AnimatedContent';
 import PixelTransition from '../components/PixelTransition/PixelTransition';
 import MonadLogo from '../components/PixelTransition/MonadLogo';
-import { Button } from '../components/ui/button';
-import { Spinner } from '../components/ui/spinner';
 import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert';
-import { ArrowRightIcon, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 
 type LoginState = 'idle' | 'loading' | 'error';
 

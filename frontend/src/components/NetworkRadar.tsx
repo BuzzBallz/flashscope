@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { DEX_LIST, DEX_DISPLAY_NAMES, type DexId } from '../shared/types';
+import { useData } from '../contexts/DataContext';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from './ui/carousel';
 import { CircleFadingArrowUp } from 'lucide-react';
 import { Button } from './ui/button';
@@ -9,6 +10,8 @@ interface GraphNode {
   id: string;
   name: string;
   val: number;
+  x?: number;
+  y?: number;
   fx?: number;
   fy?: number;
 }
@@ -95,24 +98,9 @@ const DEX_INFO: Record<string, {
     pairs: 9,
     description: 'Distinct price source with limit order support.'
   }
-}
-
-// Calculate fixed circular layout positions based on canvas size
-const getFixedPositions = (width: number, height: number) => {
-  const radius = Math.min(width, height) * 0.3;
-  const center = { x: width / 2, y: height / 2 };
-
-  return DEX_LIST.reduce((acc, dex, i) => {
-    const angle = (2 * Math.PI * i) / DEX_LIST.length - Math.PI / 2;
-    acc[dex] = {
-      x: center.x + radius * Math.cos(angle),
-      y: center.y + radius * Math.sin(angle)
-    };
-    return acc;
-  }, {} as Record<string, { x: number; y: number }>);
 };
 
-// Colors based on spread intensity (improved contrast)
+// Colors based on spread intensity
 const getSpreadColor = (spreadBps: number, isFlashing: boolean = false): string => {
   if (isFlashing) return '#FFFFFF';
   if (spreadBps < 20) return '#65a30d'; // Lime-700
@@ -122,15 +110,30 @@ const getSpreadColor = (spreadBps: number, isFlashing: boolean = false): string 
 
 const generateMockSpreads = (): Map<string, number> => {
   const spreads = new Map<string, number>();
-
-  // Generate spreads for all DEX pairs
   DEX_LIST.forEach((dex1, i) => {
     DEX_LIST.forEach((dex2, j) => {
       if (i < j) {
         const key = `${dex1}-${dex2}`;
-        // Random spread between 5 and 100 bps
-        const spread = Math.random() * 95 + 5;
-        spreads.set(key, spread);
+        spreads.set(key, Math.random() * 95 + 5);
+      }
+    });
+  });
+  return spreads;
+};
+
+// Compute real inter-DEX spreads from price data
+const computeRealSpreads = (priceMap: Map<DexId, number>): Map<string, number> => {
+  const spreads = new Map<string, number>();
+  const dexes = [...DEX_LIST].filter(d => priceMap.has(d));
+
+  dexes.forEach((dex1, i) => {
+    dexes.forEach((dex2, j) => {
+      if (i < j) {
+        const p1 = priceMap.get(dex1)!;
+        const p2 = priceMap.get(dex2)!;
+        const spreadBps = Math.abs(p1 - p2) / Math.min(p1, p2) * 10000;
+        const key = `${dex1}-${dex2}`;
+        spreads.set(key, spreadBps);
       }
     });
   });
@@ -138,25 +141,20 @@ const generateMockSpreads = (): Map<string, number> => {
   return spreads;
 };
 
-const createGraphData = (spreads: Map<string, number>, flashingLinks: Set<string>, width: number, height: number): GraphData => {
-  const nodes: GraphNode[] = DEX_LIST.map((dex) => {
-    return {
-      id: dex,
-      name: DEX_DISPLAY_NAMES[dex as DexId],
-      val: 15,
-    };
-  });
+const createGraphData = (spreads: Map<string, number>, flashingLinks: Set<string>): GraphData => {
+  const nodes: GraphNode[] = DEX_LIST.map((dex) => ({
+    id: dex,
+    name: DEX_DISPLAY_NAMES[dex as DexId],
+    val: 15,
+  }));
 
   const links: GraphLink[] = [];
-
-  // Create links between all DEX pairs
   DEX_LIST.forEach((dex1, i) => {
     DEX_LIST.forEach((dex2, j) => {
       if (i < j) {
         const key = `${dex1}-${dex2}`;
         const spreadBps = spreads.get(key) || 0;
         const isFlashing = flashingLinks.has(key);
-
         links.push({
           source: dex1,
           target: dex2,
@@ -171,6 +169,7 @@ const createGraphData = (spreads: Map<string, number>, flashingLinks: Set<string
 };
 
 export default function NetworkRadar() {
+  const { prices: realPrices, isMockMode } = useData();
   const [spreads, setSpreads] = useState<Map<string, number>>(() => generateMockSpreads());
   const [pulsePhase, setPulsePhase] = useState(0);
   const [focusedDex, setFocusedDex] = useState<string | null>(null);
@@ -182,12 +181,9 @@ export default function NetworkRadar() {
   const [size, setSize] = useState({ w: 300, h: 300 });
   const [tick, setTick] = useState(0);
   const [simRunning, setSimRunning] = useState(true);
-  const lastTickRef = useRef(0);
 
-  // Memoize graph data
-  const graphData = useMemo(() => createGraphData(spreads, flashingLinks, size.w, size.h), [spreads, flashingLinks, size.w, size.h]);
+  const graphData = useMemo(() => createGraphData(spreads, flashingLinks), [spreads, flashingLinks]);
 
-  // Reset simulation when graphData changes
   useEffect(() => setSimRunning(true), [graphData]);
 
   useEffect(() => {
@@ -197,22 +193,37 @@ export default function NetworkRadar() {
       setSize({ w: el.clientWidth, h: el.clientHeight });
     });
     return () => cancelAnimationFrame(rafId);
-  }, [selectedDex]); // re-measure when selectedDex changes
+  }, [selectedDex]);
 
-
-  // Pulse animation optimization
+  // Pulse animation
   useEffect(() => {
     const interval = setInterval(() => setPulsePhase(p => p + 0.1), 100);
     return () => clearInterval(interval);
   }, []);
 
-  // Update spreads every 3 seconds with flash detection
+  // Update spreads: real from prices when available, mock fallback
   useEffect(() => {
     const interval = setInterval(() => {
-      const newSpreads = generateMockSpreads();
-      const newFlashing = new Set<string>();
+      let newSpreads: Map<string, number>;
 
-      // Detect spread spikes > 10bps
+      if (!isMockMode && realPrices.length >= DEX_LIST.length) {
+        // Compute real spreads from actual WMON/USDC prices
+        const priceMap = new Map<DexId, number>();
+        realPrices
+          .filter(p => p.pair === 'WMON/USDC')
+          .forEach(p => priceMap.set(p.dex, p.price));
+
+        if (priceMap.size >= DEX_LIST.length) {
+          newSpreads = computeRealSpreads(priceMap);
+        } else {
+          newSpreads = generateMockSpreads();
+        }
+      } else {
+        newSpreads = generateMockSpreads();
+      }
+
+      // Detect spread spikes > 10bps for flash effect
+      const newFlashing = new Set<string>();
       newSpreads.forEach((spread, key) => {
         const prevSpread = prevSpreadsRef.current.get(key) || 0;
         if (spread - prevSpread > 10) {
@@ -224,20 +235,43 @@ export default function NetworkRadar() {
       setFlashingLinks(newFlashing);
       prevSpreadsRef.current = newSpreads;
 
-      // Clear flashing after 300ms
       if (newFlashing.size > 0) {
         setTimeout(() => setFlashingLinks(new Set()), 300);
       }
     }, 3000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [realPrices, isMockMode]);
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden relative">
-      {/* DEX info carousel on top - only when selectedDex is not null */}
+      {/* DEX info carousel */}
       {selectedDex && DEX_INFO[selectedDex] && (() => {
         const dex = DEX_INFO[selectedDex];
+
+        // Compute real spread for selected DEX vs others
+        const realSpreadEntries: { vs: string; spread: string }[] = [];
+        if (!isMockMode && realPrices.length >= DEX_LIST.length) {
+          const priceMap = new Map<DexId, number>();
+          realPrices
+            .filter(p => p.pair === 'WMON/USDC')
+            .forEach(p => priceMap.set(p.dex, p.price));
+
+          const selectedPrice = priceMap.get(selectedDex as DexId);
+          if (selectedPrice) {
+            DEX_LIST.filter(d => d !== selectedDex).forEach(otherDex => {
+              const otherPrice = priceMap.get(otherDex);
+              if (otherPrice) {
+                const spreadPct = Math.abs(selectedPrice - otherPrice) / Math.min(selectedPrice, otherPrice) * 100;
+                realSpreadEntries.push({
+                  vs: DEX_DISPLAY_NAMES[otherDex],
+                  spread: `${spreadPct.toFixed(2)}%`,
+                });
+              }
+            });
+          }
+        }
+
         const slides = [
           {
             title: 'Overview',
@@ -264,9 +298,20 @@ export default function NetworkRadar() {
             title: 'Arbitrage',
             content: (
               <div className="space-y-2 text-sm">
-                <p className="text-gray-400 text-xs">Current spread opportunities detected by FlashScope</p>
-                <div className="flex justify-between"><span className="text-gray-500">vs Uniswap</span><span className="text-lime-400 font-mono">{(Math.random() * 0.8).toFixed(2)}%</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">vs Kuru</span><span className="text-lime-400 font-mono">{(Math.random() * 0.6).toFixed(2)}%</span></div>
+                <p className="text-gray-400 text-xs">Current WMON/USDC spread vs other DEXes</p>
+                {realSpreadEntries.length > 0 ? (
+                  realSpreadEntries.map(entry => (
+                    <div key={entry.vs} className="flex justify-between">
+                      <span className="text-gray-500">vs {entry.vs}</span>
+                      <span className="text-lime-400 font-mono">{entry.spread}</span>
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    <div className="flex justify-between"><span className="text-gray-500">vs Uniswap</span><span className="text-lime-400 font-mono">{(Math.random() * 0.8).toFixed(2)}%</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">vs Kuru</span><span className="text-lime-400 font-mono">{(Math.random() * 0.6).toFixed(2)}%</span></div>
+                  </>
+                )}
                 <div className="flex justify-between"><span className="text-gray-500">Best pair</span><span className="text-white font-mono">WMON/USDC</span></div>
               </div>
             )
@@ -284,7 +329,7 @@ export default function NetworkRadar() {
             <div className="bg-[#0D0D1F] border border-purple-600/40 rounded-lg p-3">
               <div className="flex justify-between items-center mb-3">
                 <span className="text-white font-bold text-sm">{dex.name}</span>
-                <button onClick={() => setSelectedDex(null)} className="text-gray-500 hover:text-white text-xs">✕</button>
+                <button onClick={() => setSelectedDex(null)} className="text-gray-500 hover:text-white text-xs">&#x2715;</button>
               </div>
               <Carousel opts={{ duration: 8 }} className="w-full">
                 <CarouselContent>
@@ -307,9 +352,8 @@ export default function NetworkRadar() {
         );
       })()}
 
-      {/* Graph + Legend below */}
+      {/* Graph + Legend */}
       <div className="flex flex-row flex-1">
-        {/* Graph on the left */}
         <div ref={wrapperRef} className="h-full" style={{ width: '60%' }}>
           <ForceGraph2D
             ref={fgRef}
@@ -321,7 +365,6 @@ export default function NetworkRadar() {
             nodeColor={() => '#836EF9'}
             nodeRelSize={8}
             nodeCanvasObject={(node) => {
-              // Draw invisible node (just for force simulation positioning)
               const ctx = fgRef.current?.graph?.ctx();
               if (!ctx) return;
               ctx.beginPath();
@@ -336,35 +379,14 @@ export default function NetworkRadar() {
               const spreadBps = (link as GraphLink).spreadBps;
               return spreadBps > 30 ? `${spreadBps.toFixed(1)} bps` : '';
             }}
-            linkColor={(link) => {
-              const graphLink = link as GraphLink;
-              return graphLink.color;
-            }}
-            linkWidth={(link) => {
+            linkColor={(link) => (link as GraphLink).color}
+            linkWidth={(link: any) => {
               const spread = (link as GraphLink).spreadBps;
               const source = typeof link.source === 'object' ? link.source.id : link.source;
               const target = typeof link.target === 'object' ? link.target.id : link.target;
-
-              // Check if link is connected to focused DEX
               const isConnected = focusedDex && (source === focusedDex || target === focusedDex);
               const baseWidth = spread >= 50 ? 5 : spread >= 20 ? 3 : 1;
-
               return isConnected ? baseWidth + 2 : baseWidth;
-            }}
-            linkOpacity={(link) => {
-              const spread = (link as GraphLink).spreadBps;
-              const source = typeof link.source === 'object' ? link.source.id : link.source;
-              const target = typeof link.target === 'object' ? link.target.id : link.target;
-
-              // Fade out low spreads
-              if (spread < 10) return 0.3;
-
-              // Focus mode: dim unconnected links
-              if (focusedDex && source !== focusedDex && target !== focusedDex) {
-                return 0.1;
-              }
-
-              return 1;
             }}
             linkDirectionalParticles={(link) => {
               const spread = (link as GraphLink).spreadBps;
@@ -381,17 +403,10 @@ export default function NetworkRadar() {
           {/* HTML overlay for node icons */}
           <div
             className="absolute pointer-events-none z-10"
-            style={{
-              left: 0,
-              top: 0,
-              width: size.w,
-              height: size.h
-            }}
+            style={{ left: 0, top: 0, width: size.w, height: size.h }}
           >
             {graphData.nodes.map((node: GraphNode) => {
               if (node.x === undefined || node.y === undefined) return null;
-
-              // Convert graph coordinates to screen coordinates
               const screenPos = fgRef.current?.graph2ScreenCoords(node.x, node.y);
               if (!screenPos) return null;
 
@@ -433,7 +448,7 @@ export default function NetworkRadar() {
           </div>
         </div>
 
-        {/* Legend/text on the right */}
+        {/* Legend */}
         <div className="flex flex-col gap-2 px-3 text-sm" style={{ width: '40%' }}>
           <h3 className="font-mono text-sm text-muted uppercase tracking-wide">
             Network Radar

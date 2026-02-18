@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { EventType } from '../types/local';
+import { DEX_DISPLAY_NAMES, type DexId } from '../shared/types';
+import { useData } from '../contexts/DataContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 
@@ -88,9 +89,11 @@ const DecryptedText: React.FC<DecryptedTextProps> = ({
   );
 };
 
+type EventType = 'ARB' | 'OPPORTUNITY' | 'MISS';
+
 type LiveEvent = {
   id: string;
-  type: 'ARB' | 'SWAP' | 'MISS';
+  type: EventType;
   pair: string;
   dexBuy: string;
   dexSell: string;
@@ -108,85 +111,33 @@ const fadeInStyle: React.CSSProperties = {
   animation: 'fadeInBlur 0.4s ease-out forwards'
 };
 
-const EVENT_TYPES: EventType[] = ['ARB', 'SWAP', 'MISS'];
-const DEX_NAMES = ['Uniswap V4', 'Kuru', 'Curve', 'Trader Joe', 'Clober', 'Ambient'];
-const PAIRS = ['WMON/USDC', 'WETH/USDC', 'WMON/WETH'];
-
 const getEventColor = (type: EventType) => {
   switch (type) {
     case 'ARB':
       return 'bg-lime-600 text-black';
-    case 'SWAP':
+    case 'OPPORTUNITY':
       return 'bg-accent text-white';
     case 'MISS':
       return 'bg-orange-600 text-white';
   }
 };
 
-const generateRandomHash = () => {
-  return '0x' + Array.from({ length: 64 }, () =>
-    Math.floor(Math.random() * 16).toString(16)
-  ).join('');
+const getEventLabel = (type: EventType) => {
+  switch (type) {
+    case 'ARB': return 'ARB';
+    case 'OPPORTUNITY': return 'OPP';
+    case 'MISS': return 'MISS';
+  }
 };
 
-const generateMockEvent = (): LiveEvent => {
-  const type = EVENT_TYPES[Math.floor(Math.random() * EVENT_TYPES.length)];
-  const now = Date.now();
-  const pair = PAIRS[Math.floor(Math.random() * PAIRS.length)];
-  const dexBuy = DEX_NAMES[Math.floor(Math.random() * DEX_NAMES.length)];
-  const dexSell = DEX_NAMES.filter(d => d !== dexBuy)[Math.floor(Math.random() * (DEX_NAMES.length - 1))];
+const dexName = (dex: DexId | string) => DEX_DISPLAY_NAMES[dex as DexId] || dex;
 
-  const spreadBps = type === 'ARB' ? Math.floor(Math.random() * 100) + 20 : Math.floor(Math.random() * 15) + 5;
-  const profitAmount = type === 'ARB' ? Math.floor(Math.random() * 500) + 50 : Math.floor(Math.random() * 20);
-  const gasAmount = (Math.random() * 0.5 + 0.1).toFixed(4);
-
-  const descriptions = {
-    ARB: [
-      `Arbitrage executed: ${pair} (${dexBuy} → ${dexSell})`,
-      `Profit captured: ${pair} spread`,
-      `Flash loan completed: ${(spreadBps / 100).toFixed(1)}% spread on ${pair}`,
-    ],
-    SWAP: [
-      `Swap detected: 50k USDC → WMON`,
-      `Large trade: 100 WETH → USDC`,
-      `Pool rebalance: ${dexBuy} ${pair}`,
-    ],
-    MISS: [
-      'Opportunity missed: insufficient liquidity',
-      'Execution failed: slippage too high',
-      'Gas spike: transaction reverted',
-    ],
-  };
-
-  const description = descriptions[type][Math.floor(Math.random() * descriptions[type].length)];
-
-  const statuses = {
-    ARB: ['Confirmed', 'Pending', 'Executed'],
-    SWAP: ['Confirmed', 'Pending'],
-    MISS: ['Failed', 'Reverted', 'Skipped'],
-  };
-
-  return {
-    id: `${now}-${Math.random()}`,
-    type,
-    pair,
-    dexBuy,
-    dexSell,
-    spread: `${spreadBps} bps`,
-    profit: type === 'ARB' ? `+$${profitAmount}` : type === 'SWAP' ? `$${profitAmount}` : '$0',
-    gas: `${gasAmount} WMON`,
-    txHash: generateRandomHash(),
-    blockNumber: Math.floor(Math.random() * 100000) + 1000000,
-    timestamp: new Date(now).toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }),
-    status: statuses[type][Math.floor(Math.random() * statuses[type].length)],
-    description,
-  };
-};
+const formatTime = (ts: number) => new Date(ts).toLocaleTimeString('en-US', {
+  hour12: false,
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+});
 
 interface LiveFeedProps {
   isAutoMode: boolean;
@@ -194,47 +145,105 @@ interface LiveFeedProps {
 }
 
 export default function LiveFeed({ isAutoMode, onArbitrageExecuted }: LiveFeedProps) {
+  const { lastArbitrage, lastOpportunity, lastFailure } = useData();
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<LiveEvent | null>(null);
   const [pendingArb, setPendingArb] = useState<LiveEvent | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Helper to parse profit from string (e.g., "+$150" -> 150)
-  const parseProfit = (profitStr: string): number => {
-    const match = profitStr.match(/\+?\$?(\d+)/);
-    return match ? parseFloat(match[1]) : 0;
-  };
+  // Track previous values to detect new events
+  const prevArbTimestamp = useRef(0);
+  const prevOppTimestamp = useRef(0);
+  const prevFailTimestamp = useRef(0);
 
+  // Watch ARBITRAGE_EXECUTED
   useEffect(() => {
-    // Pause generation while waiting for ARB confirmation in manual mode
-    if (!isAutoMode && pendingArb) return;
+    if (!lastArbitrage) return;
+    if (lastArbitrage.timestamp === prevArbTimestamp.current) return;
+    prevArbTimestamp.current = lastArbitrage.timestamp;
 
-    // Generate a new mock event every 1.5 seconds
-    const interval = setInterval(() => {
-      const newEvent = generateMockEvent();
+    const event: LiveEvent = {
+      id: `arb-${lastArbitrage.timestamp}-${Math.random()}`,
+      type: 'ARB',
+      pair: lastArbitrage.pair,
+      dexBuy: dexName(lastArbitrage.dexBuy),
+      dexSell: dexName(lastArbitrage.dexSell),
+      spread: `${Math.round(lastArbitrage.profit * 100)} bps`,
+      profit: `+$${lastArbitrage.profit.toFixed(2)}`,
+      gas: `${lastArbitrage.executionTimeMs}ms`,
+      txHash: lastArbitrage.txHash,
+      blockNumber: lastArbitrage.blockNumber,
+      timestamp: formatTime(lastArbitrage.timestamp),
+      status: 'Confirmed',
+      description: `Arbitrage executed: ${lastArbitrage.pair} (${dexName(lastArbitrage.dexBuy)} -> ${dexName(lastArbitrage.dexSell)})`,
+    };
 
-      // In manual mode, ARB events require confirmation
-      if (newEvent.type === 'ARB' && !isAutoMode) {
-        setPendingArb(newEvent);
-      } else {
-        setEvents((prev) => [newEvent, ...prev].slice(0, 100)); // Keep max 100 events
+    setEvents(prev => [event, ...prev].slice(0, 50));
+    onArbitrageExecuted(lastArbitrage.profit);
+  }, [lastArbitrage, onArbitrageExecuted]);
 
-        // Call callback when ARB is auto-executed in auto mode
-        if (newEvent.type === 'ARB') {
-          onArbitrageExecuted(parseProfit(newEvent.profit));
-        }
-      }
-    }, 1500);
-
-    return () => clearInterval(interval);
-  }, [isAutoMode, pendingArb, onArbitrageExecuted]);
-
+  // Watch OPPORTUNITY_DETECTED
   useEffect(() => {
-    // Don't scroll while waiting for ARB confirmation
+    if (!lastOpportunity) return;
+    // Use a combination of fields as key since Opportunity doesn't have a timestamp field in some cases
+    const oppKey = `${lastOpportunity.priceBuy}-${lastOpportunity.priceSell}-${lastOpportunity.spreadBps}`;
+    const numKey = parseFloat(oppKey.replace(/-/g, ''));
+    if (numKey === prevOppTimestamp.current) return;
+    prevOppTimestamp.current = numKey;
+
+    const event: LiveEvent = {
+      id: `opp-${Date.now()}-${Math.random()}`,
+      type: 'OPPORTUNITY',
+      pair: lastOpportunity.pair,
+      dexBuy: dexName(lastOpportunity.dexBuy),
+      dexSell: dexName(lastOpportunity.dexSell),
+      spread: `${lastOpportunity.spreadBps} bps`,
+      profit: lastOpportunity.estimatedProfit > 0 ? `~$${lastOpportunity.estimatedProfit.toFixed(2)}` : 'TBD',
+      gas: '',
+      txHash: '',
+      blockNumber: 0,
+      timestamp: formatTime(Date.now()),
+      status: 'Detected',
+      description: `Opportunity: ${lastOpportunity.pair} spread ${lastOpportunity.spreadBps}bps (${dexName(lastOpportunity.dexBuy)} -> ${dexName(lastOpportunity.dexSell)})`,
+    };
+
+    // In manual mode, show confirmation for opportunities
+    if (!isAutoMode) {
+      setPendingArb(event);
+    } else {
+      setEvents(prev => [event, ...prev].slice(0, 50));
+    }
+  }, [lastOpportunity, isAutoMode]);
+
+  // Watch ARBITRAGE_FAILED
+  useEffect(() => {
+    if (!lastFailure) return;
+    if (lastFailure.timestamp === prevFailTimestamp.current) return;
+    prevFailTimestamp.current = lastFailure.timestamp;
+
+    const event: LiveEvent = {
+      id: `fail-${lastFailure.timestamp}-${Math.random()}`,
+      type: 'MISS',
+      pair: lastFailure.pair,
+      dexBuy: dexName(lastFailure.dexBuy),
+      dexSell: dexName(lastFailure.dexSell),
+      spread: '',
+      profit: '$0',
+      gas: '',
+      txHash: '',
+      blockNumber: 0,
+      timestamp: formatTime(lastFailure.timestamp),
+      status: 'Failed',
+      description: `Failed: ${lastFailure.reason} (${dexName(lastFailure.dexBuy)} -> ${dexName(lastFailure.dexSell)})`,
+    };
+
+    setEvents(prev => [event, ...prev].slice(0, 50));
+  }, [lastFailure]);
+
+  // Auto-scroll
+  useEffect(() => {
     if (pendingArb) return;
-
-    // Auto-scroll to top when new events arrive (unless paused)
     if (!isPaused && containerRef.current) {
       containerRef.current.scrollTop = 0;
     }
@@ -253,6 +262,16 @@ export default function LiveFeed({ isAutoMode, onArbitrageExecuted }: LiveFeedPr
           to   { opacity: 1; filter: blur(0px); }
         }
       `}</style>
+
+      {/* Empty state */}
+      {events.length === 0 && !pendingArb && (
+        <div className="flex flex-col items-center justify-center h-full text-center gap-3">
+          <div className="w-3 h-3 rounded-full bg-accent animate-pulse" />
+          <p className="text-muted font-mono text-sm">Scanning for arbitrage opportunities...</p>
+          <p className="text-muted/50 font-mono text-xs">Events will appear here when the bot detects price discrepancies</p>
+        </div>
+      )}
+
       <div className={`space-y-0 ${pendingArb ? 'pointer-events-none' : ''}`}>
         {events.map((event, index) => (
           <div
@@ -263,7 +282,7 @@ export default function LiveFeed({ isAutoMode, onArbitrageExecuted }: LiveFeedPr
           >
             <span className="text-muted">[{event.timestamp}]</span>
             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEventColor(event.type)}`}>
-              {event.type}
+              {getEventLabel(event.type)}
             </span>
             <span className="text-white flex-1">{event.description}</span>
             {event.type === 'ARB' && (
@@ -280,27 +299,26 @@ export default function LiveFeed({ isAutoMode, onArbitrageExecuted }: LiveFeedPr
             <p className="text-yellow-400 text-xs font-bold uppercase tracking-widest mb-2">Arbitrage Detected</p>
             <p className="text-white text-2xl font-bold font-mono">{pendingArb.pair}</p>
             <p className="text-gray-400 text-sm mt-1">
-              {pendingArb.dexBuy} → {pendingArb.dexSell}
+              {pendingArb.dexBuy} {'->'} {pendingArb.dexSell}
             </p>
-            <p className="text-lime-400 text-xl font-mono mt-3">{pendingArb.profit} profit</p>
-            <p className="text-gray-500 text-xs mt-1">Spread: {pendingArb.spread} • Gas: {pendingArb.gas}</p>
+            <p className="text-lime-400 text-xl font-mono mt-3">{pendingArb.spread}</p>
+            <p className="text-gray-500 text-xs mt-1">Spread: {pendingArb.spread}</p>
           </div>
           <div className="flex gap-4">
             <button
               onClick={() => {
-                setEvents(prev => [pendingArb, ...prev])
-                onArbitrageExecuted(parseProfit(pendingArb.profit))
-                setPendingArb(null)
+                setEvents(prev => [pendingArb, ...prev].slice(0, 50));
+                setPendingArb(null);
               }}
               className="px-6 py-2 bg-lime-600 hover:bg-lime-500 text-white rounded-lg font-bold transition-colors"
             >
-              Execute
+              Acknowledge
             </button>
             <button
               onClick={() => setPendingArb(null)}
               className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-gray-400 rounded-lg transition-colors"
             >
-              Reject
+              Dismiss
             </button>
           </div>
         </div>
@@ -320,10 +338,10 @@ export default function LiveFeed({ isAutoMode, onArbitrageExecuted }: LiveFeedPr
             <div className="flex items-center gap-3">
               <span className={`text-xs font-bold px-2 py-1 rounded ${
                 selectedEvent.type === 'ARB' ? 'bg-lime-900/50 text-lime-400' :
-                selectedEvent.type === 'SWAP' ? 'bg-yellow-900 text-yellow-400' :
+                selectedEvent.type === 'OPPORTUNITY' ? 'bg-purple-900/50 text-purple-400' :
                 'bg-orange-900/50 text-orange-400'
               }`}>
-                {selectedEvent.type}
+                {getEventLabel(selectedEvent.type)}
               </span>
               <DecryptedText
                 text={selectedEvent.pair}
@@ -335,7 +353,7 @@ export default function LiveFeed({ isAutoMode, onArbitrageExecuted }: LiveFeedPr
                 encryptedClassName="text-purple-400"
               />
             </div>
-            <button onClick={() => setSelectedEvent(null)} className="text-gray-400 hover:text-white text-xl">✕</button>
+            <button onClick={() => setSelectedEvent(null)} className="text-gray-400 hover:text-white text-xl">&#x2715;</button>
           </div>
 
           {/* Tabs */}
@@ -352,8 +370,8 @@ export default function LiveFeed({ isAutoMode, onArbitrageExecuted }: LiveFeedPr
                   <CardTitle className="text-white">Transaction Overview</CardTitle>
                   <CardDescription className="text-gray-400">
                     {selectedEvent.type === 'ARB' ? 'Arbitrage opportunity detected and executed' :
-                     selectedEvent.type === 'SWAP' ? 'Swap detected on Monad' :
-                     'Opportunity missed — spread too low'}
+                     selectedEvent.type === 'OPPORTUNITY' ? 'Opportunity detected by scanner' :
+                     'Arbitrage attempt failed'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-3 text-sm">
@@ -362,7 +380,9 @@ export default function LiveFeed({ isAutoMode, onArbitrageExecuted }: LiveFeedPr
                   <div><span className="text-gray-500">Spread</span><p className="text-lime-400 font-mono">{selectedEvent.spread}</p></div>
                   <div><span className="text-gray-500">Profit</span><p className="text-purple-400 font-mono">{selectedEvent.profit}</p></div>
                   <div><span className="text-gray-500">Timestamp</span><p className="text-white font-mono">{selectedEvent.timestamp}</p></div>
-                  <div><span className="text-gray-500">Block</span><p className="text-white font-mono">#{selectedEvent.blockNumber}</p></div>
+                  {selectedEvent.blockNumber > 0 && (
+                    <div><span className="text-gray-500">Block</span><p className="text-white font-mono">#{selectedEvent.blockNumber}</p></div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -371,12 +391,12 @@ export default function LiveFeed({ isAutoMode, onArbitrageExecuted }: LiveFeedPr
               <Card className="bg-[#0D0D1F] border-purple-600/30 text-white mt-2">
                 <CardHeader>
                   <CardTitle className="text-white">Execution Details</CardTitle>
-                  <CardDescription className="text-gray-400">DEX routing and gas information</CardDescription>
+                  <CardDescription className="text-gray-400">DEX routing and execution info</CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-3 text-sm">
                   <div><span className="text-gray-500">Buy on</span><p className="text-white font-mono">{selectedEvent.dexBuy}</p></div>
                   <div><span className="text-gray-500">Sell on</span><p className="text-white font-mono">{selectedEvent.dexSell}</p></div>
-                  <div><span className="text-gray-500">Gas used</span><p className="text-yellow-400 font-mono">{selectedEvent.gas}</p></div>
+                  {selectedEvent.gas && <div><span className="text-gray-500">Execution time</span><p className="text-yellow-400 font-mono">{selectedEvent.gas}</p></div>}
                   <div><span className="text-gray-500">Net profit</span><p className="text-lime-400 font-mono">{selectedEvent.profit}</p></div>
                 </CardContent>
               </Card>
@@ -389,22 +409,30 @@ export default function LiveFeed({ isAutoMode, onArbitrageExecuted }: LiveFeedPr
                   <CardDescription className="text-gray-400">Monad transaction details</CardDescription>
                 </CardHeader>
                 <CardContent className="text-sm space-y-3">
-                  <div>
-                    <span className="text-gray-500">Tx Hash</span>
-                    <p className="text-purple-400 font-mono text-xs break-all">{selectedEvent.txHash}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Block</span>
-                    <p className="text-white font-mono">#{selectedEvent.blockNumber}</p>
-                  </div>
-                  <a
-                    href={`https://monadscan.com/tx/${selectedEvent.txHash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block mt-2 text-xs text-purple-400 underline hover:text-purple-300"
-                  >
-                    View on MonadScan →
-                  </a>
+                  {selectedEvent.txHash ? (
+                    <>
+                      <div>
+                        <span className="text-gray-500">Tx Hash</span>
+                        <p className="text-purple-400 font-mono text-xs break-all">{selectedEvent.txHash}</p>
+                      </div>
+                      {selectedEvent.blockNumber > 0 && (
+                        <div>
+                          <span className="text-gray-500">Block</span>
+                          <p className="text-white font-mono">#{selectedEvent.blockNumber}</p>
+                        </div>
+                      )}
+                      <a
+                        href={`https://testnet.monadvision.com/tx/${selectedEvent.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block mt-2 text-xs text-purple-400 underline hover:text-purple-300"
+                      >
+                        View on Monad Explorer {'→'}
+                      </a>
+                    </>
+                  ) : (
+                    <p className="text-gray-500">No on-chain data for this event type</p>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

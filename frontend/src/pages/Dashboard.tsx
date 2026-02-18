@@ -9,6 +9,8 @@ import AnimatedContent from '../components/AnimatedContent/AnimatedContent';
 import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../components/ui/resizable';
 import MobileDashboard from './MobileDashboard';
+import DemoFlow from '../components/DemoFlow';
+import { usePriceReset } from '../hooks/usePriceReset';
 
 export default function Dashboard() {
   const location = useLocation();
@@ -16,6 +18,8 @@ export default function Dashboard() {
   const [isAutoMode, setIsAutoMode] = useState(true);
   const [totalProfit, setTotalProfit] = useState(0);
   const [showHint, setShowHint] = useState(true);
+
+  const { isResetting, lastResult } = usePriceReset();
 
   const handleArbitrageExecuted = (profit: number) => {
     setTotalProfit(prev => prev + profit);
@@ -99,6 +103,20 @@ export default function Dashboard() {
           </AnimatedContent>
         </div>
       )}
+
+        {/* Demo Flow overlay */}
+        <DemoFlow />
+
+        {/* Hidden price reset indicator (Ctrl+Shift+P) */}
+        {(isResetting || lastResult) && (
+          <div className="fixed bottom-4 right-4 z-50 bg-[#0D0D1F] border border-purple-600/40 px-3 py-2 rounded-lg font-mono text-xs">
+            {isResetting ? (
+              <span className="text-purple-400 animate-pulse">Resetting prices...</span>
+            ) : (
+              <span className="text-lime-400">{lastResult}</span>
+            )}
+          </div>
+        )}
 
         {/* Resize Hint */}
         {showHint && (

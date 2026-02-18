@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { WS_URL, type WSMessage } from '../shared/types';
+import type { WSMessage } from '../shared/types';
+import { WS_URL } from '../lib/config';
 
 export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting';
 
