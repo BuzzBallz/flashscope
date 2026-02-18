@@ -83,29 +83,14 @@ interface ProfitBannerProps {
   totalProfit: number;
 }
 
-export default function ProfitBanner({ isAutoMode, onModeChange, totalProfit: _totalProfit }: ProfitBannerProps) {
+export default function ProfitBanner({ isAutoMode, onModeChange, totalProfit }: ProfitBannerProps) {
   const { blockInfo, lastArbitrage, connectionStatus, reconnect, isMockMode } = useData();
-  const [mockProfit, setMockProfit] = useState(0);
   const [prevBalance, setPrevBalance] = useState(0);
-
-  // Fallback to mock profit when disconnected
-  useEffect(() => {
-    if (connectionStatus === 'disconnected') {
-      const interval = setInterval(() => {
-        const increment = Math.floor(Math.random() * 141) + 10;
-        setMockProfit((prev) => prev + increment);
-      }, 2000);
-      return () => clearInterval(interval);
-    }
-  }, [connectionStatus]);
-
-  // Real profit from backend (cumulativeProfit) or mock fallback
-  const profit = lastArbitrage?.cumulativeProfit ?? mockProfit;
 
   // Update previous balance when profit changes (for CountUp animation)
   useEffect(() => {
-    setPrevBalance(profit);
-  }, [profit]);
+    setPrevBalance(totalProfit);
+  }, [totalProfit]);
   const tradeCount = lastArbitrage?.tradeCount ?? 0;
   const blockNumber = blockInfo?.number ?? null;
   const avgBlockTime = blockInfo?.avgBlockTimeMs ?? null;
@@ -143,7 +128,7 @@ export default function ProfitBanner({ isAutoMode, onModeChange, totalProfit: _t
           $
           <CountUp
             from={prevBalance}
-            to={profit}
+            to={totalProfit}
             duration={0.6}
             className="font-bold tabular-nums"
             style={{
