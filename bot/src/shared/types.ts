@@ -59,6 +59,7 @@ export interface Opportunity {
   spreadBps: number;
   estimatedProfit: number; // in USD
   amountIn: number; // borrowed amount
+  timestamp?: number; // unix ms - added to ensure React detects changes
   // Pool addresses for frontend tx construction (demo mode)
   poolBuy?: string;
   poolSell?: string;

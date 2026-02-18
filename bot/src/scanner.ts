@@ -192,6 +192,7 @@ async function scanCycle(): Promise<void> {
             spreadBps: s.spreadBps,
             estimatedProfit: 0,
             amountIn: 1,
+            timestamp: Date.now(), // Ensure React detects each opportunity as unique
             // Pool addresses for frontend tx construction
             poolBuy: lowPool.address,
             poolSell: highPool.address,
