@@ -112,7 +112,7 @@ export default function DemoFlow({ onArbitrageExecuted }: DemoFlowProps) {
         e.preventDefault();
 
         // Generate fake opportunity
-        const dexes = ['uniswap_v4', 'kuru', 'curve', 'traderjoe', 'clober', 'ambient'] as const;
+        const dexes = ['uniswap_v4', 'kuru', 'curve', 'trader_joe', 'clober', 'ambient'] as const;
         const randomDexBuy = dexes[Math.floor(Math.random() * dexes.length)];
         let randomDexSell = dexes[Math.floor(Math.random() * dexes.length)];
         // Ensure buy and sell are different
