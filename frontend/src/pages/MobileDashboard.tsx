@@ -454,7 +454,7 @@ const RadarTab = () => {
 // Main MobileDashboard Component
 export default function MobileDashboard({ isAutoMode, onModeChange }: MobileDashboardProps) {
   const { address, isConnected } = useAccount();
-  const { prices, connectionStatus, lastArbitrage } = useData();
+  const { prices, connectionStatus, lastArbitrage, lastOpportunity } = useData();
   const [activeTab, setActiveTab] = useState<'home' | 'matrix' | 'radar'>('home');
   const [events, setEvents] = useState<MobileEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<MobileEvent | null>(null);
@@ -508,7 +508,28 @@ export default function MobileDashboard({ isAutoMode, onModeChange }: MobileDash
     sendGas();
   }, [isConnected, address, gasSent]);
 
-  // Update PnL when real arbitrage executes (fake profits for demo)
+  // Update PnL when opportunities are detected (demo mode)
+  useEffect(() => {
+    if (!lastOpportunity) return;
+
+    // Only increment for profitable opportunities with > 50bps spread
+    if (lastOpportunity.spreadBps < 50) return;
+
+    // Generate fake profit between $2-$8 for visual effect
+    const fakeProfit = 2 + Math.random() * 6;
+
+    console.log('[PROFIT] Opportunity detected, adding fake profit:', fakeProfit);
+    setTotalProfit((prev) => prev + fakeProfit);
+
+    // Increment arb count
+    setStats((prev) => ({
+      ...prev,
+      arb: prev.arb + 1,
+      avg: prev.arb > 0 ? (prev.avg + fakeProfit) / 2 : fakeProfit
+    }));
+  }, [lastOpportunity]);
+
+  // Update PnL when real arbitrage executes (auto mode)
   useEffect(() => {
     if (!lastArbitrage) return;
 

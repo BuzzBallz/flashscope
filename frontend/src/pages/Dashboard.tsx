@@ -21,19 +21,31 @@ export default function Dashboard() {
   const [showHint, setShowHint] = useState(true);
 
   const { isResetting, lastResult } = usePriceReset();
-  const { lastArbitrage } = useData();
+  const { lastArbitrage, lastOpportunity } = useData();
 
   const handleArbitrageExecuted = (profit: number) => {
     setTotalProfit(prev => prev + profit);
   };
 
-  // Update PnL when real arbitrage executes (fake profits for demo)
+  // Update PnL when opportunities are detected (demo mode - bot detects but doesn't execute)
   useEffect(() => {
-    if (!lastArbitrage) return;
+    if (!lastOpportunity) return;
+
+    // Only increment for profitable opportunities with > 50bps spread
+    if (lastOpportunity.spreadBps < 50) return;
 
     // Generate fake profit between $2-$8 for visual effect
     const fakeProfit = 2 + Math.random() * 6;
 
+    console.log('[PROFIT] Opportunity detected, adding fake profit:', fakeProfit);
+    setTotalProfit((prev) => prev + fakeProfit);
+  }, [lastOpportunity]);
+
+  // Also update PnL when real arbitrage executes (auto mode)
+  useEffect(() => {
+    if (!lastArbitrage) return;
+
+    const fakeProfit = 2 + Math.random() * 6;
     console.log('[PROFIT] Real arb executed, adding fake profit:', fakeProfit);
     setTotalProfit((prev) => prev + fakeProfit);
   }, [lastArbitrage]);
