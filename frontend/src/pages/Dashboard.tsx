@@ -30,7 +30,7 @@ export default function Dashboard() {
     <>
       {/* Mobile Dashboard (< 1024px) */}
       <div className="lg:hidden">
-        <MobileDashboard />
+        <MobileDashboard isAutoMode={isAutoMode} onModeChange={setIsAutoMode} />
       </div>
 
       {/* Desktop Dashboard (>= 1024px) */}
