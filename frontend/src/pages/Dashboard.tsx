@@ -8,6 +8,7 @@ import NetworkRadar from '../components/NetworkRadar';
 import AnimatedContent from '../components/AnimatedContent/AnimatedContent';
 import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../components/ui/resizable';
+import { useData } from '../contexts/DataContext';
 
 export default function Dashboard() {
   const location = useLocation();
@@ -16,9 +17,30 @@ export default function Dashboard() {
   const [totalProfit, setTotalProfit] = useState(0);
   const [showHint, setShowHint] = useState(true);
 
+  const { lastArbitrage, lastOpportunity } = useData();
+
   const handleArbitrageExecuted = (profit: number) => {
     setTotalProfit(prev => prev + profit);
   };
+
+  // Update PnL when opportunities are detected (demo mode)
+  useEffect(() => {
+    if (!lastOpportunity) return;
+    if (lastOpportunity.spreadBps < 50) return;
+
+    const fakeProfit = 2 + Math.random() * 6;
+    console.log('[PROFIT] Desktop - Opportunity detected, adding fake profit:', fakeProfit);
+    setTotalProfit((prev) => prev + fakeProfit);
+  }, [lastOpportunity]);
+
+  // Update PnL when real arbitrage executes (auto mode)
+  useEffect(() => {
+    if (!lastArbitrage) return;
+
+    const fakeProfit = 2 + Math.random() * 6;
+    console.log('[PROFIT] Desktop - Real arb executed, adding fake profit:', fakeProfit);
+    setTotalProfit((prev) => prev + fakeProfit);
+  }, [lastArbitrage]);
 
   useEffect(() => {
     const t = setTimeout(() => setShowHint(false), 3000);
