@@ -8,6 +8,7 @@ import NetworkRadar from '../components/NetworkRadar';
 import AnimatedContent from '../components/AnimatedContent/AnimatedContent';
 import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../components/ui/resizable';
+import DemoFlow from '../components/DemoFlow';
 import { useData } from '../contexts/DataContext';
 
 export default function Dashboard() {
@@ -113,6 +114,9 @@ export default function Dashboard() {
           </AnimatedContent>
         </div>
       )}
+
+      {/* Demo Flow overlay */}
+      <DemoFlow />
 
       {/* Resize Hint */}
       {showHint && (
