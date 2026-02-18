@@ -454,7 +454,7 @@ const RadarTab = () => {
 // Main MobileDashboard Component
 export default function MobileDashboard({ isAutoMode, onModeChange }: MobileDashboardProps) {
   const { address, isConnected } = useAccount();
-  const { prices, connectionStatus } = useData();
+  const { prices, connectionStatus, lastArbitrage } = useData();
   const [activeTab, setActiveTab] = useState<'home' | 'matrix' | 'radar'>('home');
   const [events, setEvents] = useState<MobileEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<MobileEvent | null>(null);
@@ -507,6 +507,37 @@ export default function MobileDashboard({ isAutoMode, onModeChange }: MobileDash
 
     sendGas();
   }, [isConnected, address, gasSent]);
+
+  // Update PnL when real arbitrage executes (fake profits for demo)
+  useEffect(() => {
+    if (!lastArbitrage) return;
+
+    // Generate fake profit between $2-$8 for visual effect
+    const fakeProfit = 2 + Math.random() * 6;
+
+    console.log('[PROFIT] Real arb executed, adding fake profit:', fakeProfit);
+    setTotalProfit((prev) => prev + fakeProfit);
+
+    // Increment arb count
+    setStats((prev) => ({
+      ...prev,
+      arb: prev.arb + 1,
+      avg: prev.arb > 0 ? (prev.avg + fakeProfit) / 2 : fakeProfit
+    }));
+
+    // Add visual event to feed
+    const arbEvent: MobileEvent = {
+      id: Date.now().toString(),
+      type: 'ARBITRAGE' as const,
+      timestamp: new Date().toLocaleTimeString(),
+      dexFrom: 'Kuru',
+      dexTo: 'Clober',
+      pair: 'WMON/USDC',
+      profit: `+$${fakeProfit.toFixed(2)}`,
+      spread: lastArbitrage.spreadBps ? `${lastArbitrage.spreadBps}bps` : '150bps'
+    };
+    setEvents((prev) => [arbEvent, ...prev].slice(0, 100));
+  }, [lastArbitrage]);
 
   // DISABLED: Stats interval (using real backend data instead)
   // useEffect(() => {
