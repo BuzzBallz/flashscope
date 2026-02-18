@@ -57,10 +57,10 @@ async function main() {
   // 2. Start WebSocket server
   startWSServer();
 
-  // 3. Start price scanner (reads 6 pools every 2s)
+  // 3. Start price scanner (reads 6 pools every 5s to avoid RPC rate limits)
   // demo=true: broadcast opportunities but don't auto-execute (user signs tx)
   const isDemo = process.env.DEMO_MODE !== "false";
-  startScanner(2000, isDemo);
+  startScanner(5000, isDemo); // 5s interval to avoid RPC 429 errors
   console.log(`Demo mode: ${isDemo ? "ON (user signs tx)" : "OFF (auto-execute)"}`);
 
   console.log("");
