@@ -1,9 +1,47 @@
+# Dependencies
 node_modules/
+
+# Build outputs
 dist/
-.env
 out/
 cache/
 broadcast/
-data/replay.json
+
+# Environment
+.env
+.env.*
+
+# Foundry
+contracts/cache/
+contracts/out/
+
+# IDE & OS
+.DS_Store
+.vscode/
+.idea/
+
+# AI tool configs
+.claude/
+.clinerules
+CLAUDE.md
+**/CLAUDE.md
+
+# Internal docs (kept locally, not in repo)
+DEVA_MEMORY.md
+MERGE_INSTRUCTIONS.md
+PIVOT_TESTNET_STRATEGY.md
+PRD_FlashScope_EN.md
+ADDRESSES_TESTNET.md
+frontend/CHECKLIST.md
+frontend/WEBSOCKET_INTEGRATION.md
+
+# Build artifacts
+*.tsbuildinfo
 *.log
+
+# Data
+data/replay.json
+
+# Misc
 commands.txt
+FlashScope_Pitch.pptx
