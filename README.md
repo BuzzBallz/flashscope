@@ -4,7 +4,9 @@
 
 Built at [Monad Blitz @ ETHDenver 2026](https://www.ethdenver.com/) — an 8-hour hackathon.
 
-FlashScope scans 6 DEXs on Monad, detects price discrepancies across liquidity pools, executes 3-pool flash loan arbitrage, and visualizes everything in a cinematic Bloomberg Terminal-style dashboard — all under Monad's 400ms block time.
+FlashScope scans 6 pools on Monad testnet, detects price discrepancies between them, executes 3-pool flash loan arbitrage, and visualizes everything in a Bloomberg Terminal-style dashboard, at the pace of Monad's 400ms blocks.
+
+> **Scope.** The 6 "DEXs" are `SimplePool` contracts we deployed on testnet, one per target venue, with seeded price differentials. No real DEX is called and no real funds are involved. It is a hackathon prototype of the detection and execution loop.
 
 ---
 
